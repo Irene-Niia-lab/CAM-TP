@@ -13,7 +13,7 @@ const INITIAL_STATE: TeachingPlan = {
   games: [ 
     { name: '', goal: '', prep: '', rules: '' }
   ],
-  steps: Array(6).fill(null).map((_, i) => ({
+  steps: Array(5).fill(null).map((_, i) => ({
     step: '',
     duration: '',
     design: '',
@@ -40,7 +40,8 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('teaching-plan-v5', JSON.stringify(data));
     const { level, unit, lessonNo } = data.basic;
-    const fileName = `02.PU_ ${level || ''}_U${unit || ''}_L${lessonNo || ''}_ Teaching Plan`.replace(/\s+/g, ' ');
+    // 导出文件名格式 02.PU[级别] U[单元]L[课号] Teaching Plan
+    const fileName = `02.PU${level || ''} U${unit || '' }L${lessonNo || ''} Teaching Plan`.replace(/\s+/g, ' ').trim();
     document.title = fileName;
   }, [data]);
 
@@ -190,7 +191,7 @@ const App: React.FC = () => {
           onClick={handlePrint} 
           className="bg-slate-900 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl shadow-xl hover:scale-105 transition-all font-bold text-base flex items-center gap-3"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
           导出正式教案
         </button>
         
@@ -210,31 +211,41 @@ const App: React.FC = () => {
         </button>
       </div>
 
-      <div className={`paper mx-auto bg-white transition-all duration-500 print:shadow-none print:p-[15mm] print:rounded-none ${isPreview ? 'p-[20mm] rounded-none shadow-2xl scale-[0.98]' : 'p-[25mm] rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.03)]'}`} style={{ maxWidth: '210mm' }}>
+      <div className={`paper mx-auto bg-white transition-all duration-500 print:shadow-none print:p-[15mm] print:rounded-none relative ${isPreview ? 'p-[20mm] rounded-none shadow-2xl scale-[0.98]' : 'p-[25mm] rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.03)]'}`} style={{ maxWidth: '210mm' }}>
+        
+        {/* 背景水印 */}
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.03] overflow-hidden select-none z-0 text-center">
+          <span className="text-[60px] font-bold font-en -rotate-45 whitespace-nowrap">CAMPUPRO ENGLISH<br/>Training & Development Department</span>
+        </div>
+
         {/* 精致页眉 */}
-        <div className="text-center mb-20">
-          <h1 className="text-4xl font-bold font-zh text-slate-900 tracking-[0.15em]">线下课课堂教案</h1>
-          <div className="mt-4 flex items-center justify-center gap-4">
-            <span className="h-[1px] w-12 bg-indigo-100"></span>
-            <p className="text-indigo-400 font-en text-xs tracking-[0.4em] uppercase font-bold">Teaching Plan Template</p>
-            <span className="h-[1px] w-12 bg-indigo-100"></span>
+        <div className="text-center mb-20 relative z-10">
+          <h1 className="text-4xl font-bold font-zh text-slate-900 tracking-[0.15em]">少儿英语线下课课堂教案</h1>
+          <div className="mt-4 flex flex-col items-center justify-center gap-2">
+            <div className="flex items-center gap-4">
+              <span className="h-[1px] w-12 bg-indigo-100"></span>
+              <p className="text-indigo-400 font-en text-xs tracking-[0.1em] uppercase font-bold text-center">CAMPUPRO ENGLISH Training & Development Department</p>
+              <span className="h-[1px] w-12 bg-indigo-100"></span>
+            </div>
+            <p className="text-slate-300 font-en text-[9px] tracking-[0.4em] uppercase font-medium">Teaching Plan Template</p>
           </div>
         </div>
 
         {/* 一、基础课程信息 */}
-        <section className="mb-16">
+        <section className="mb-16 relative z-10">
           <SectionTitle num="01" title="基础课程信息" onClear={() => clearSection('basic')} />
           <div className={`grid grid-cols-2 border border-slate-200 rounded-2xl overflow-hidden transition-all ${isPreview ? 'rounded-none' : ''}`}>
             {[
               { label: '课程级别', path: 'basic.level' },
-              { label: '课号/单元', path: 'basic.lessonNo' },
+              { label: '单元', path: 'basic.unit' },
+              { label: '课号', path: 'basic.lessonNo' },
               { label: '课程时长', path: 'basic.duration' },
               { label: '授课班级', path: 'basic.className' },
               { label: '学员人数', path: 'basic.studentCount' },
               { label: '授课日期', path: 'basic.date' },
             ].map((item, idx) => (
-              <div key={item.path} className={`flex border-slate-100 ${idx % 2 === 0 ? 'border-r' : ''} ${idx < 4 ? 'border-b' : ''}`}>
-                <div className="w-[100px] bg-slate-50/50 p-4 font-zh font-bold text-sm text-slate-500 flex items-center justify-center">
+              <div key={item.path} className={`flex border-slate-100 ${idx % 2 === 0 ? 'border-r' : ''} ${idx < 6 ? 'border-b' : ''} ${idx === 6 ? 'col-span-2' : ''}`}>
+                <div className="w-[100px] bg-slate-50/50 p-4 font-zh font-bold text-sm text-slate-500 flex items-center justify-center text-center">
                   {item.label}
                 </div>
                 <div className="flex-1 p-3">
@@ -252,7 +263,7 @@ const App: React.FC = () => {
         </section>
 
         {/* 二、教学目标 */}
-        <section className="mb-16">
+        <section className="mb-16 relative z-10">
           <SectionTitle num="02" title="核心教学目标" onClear={() => clearSection('objectives')} />
           <div className="flex flex-col space-y-12">
             <div>
@@ -277,7 +288,7 @@ const App: React.FC = () => {
         </section>
 
         {/* 三、教具与游戏 */}
-        <section className="mb-16">
+        <section className="mb-16 relative z-10">
           <SectionTitle num="03" title="教具与互动准备" onClear={() => { clearSection('materials'); clearSection('games'); }} />
           <div className="flex flex-col space-y-12">
             <div>
@@ -323,8 +334,8 @@ const App: React.FC = () => {
         </section>
 
         {/* 四、课程实施 */}
-        <section className="mb-16 page-break-before">
-          <SectionTitle num="04" title="具体实施过程" onClear={() => clearSection('steps')} />
+        <section className="mb-16 page-break-before relative z-10">
+          <SectionTitle num="04" title="教学环节实施" onClear={() => clearSection('steps')} />
           <div className={`border border-slate-200 overflow-hidden shadow-sm transition-all ${isPreview ? 'rounded-none border-slate-400' : 'rounded-2xl'}`}>
             <table className="w-full border-collapse table-fixed">
               <thead className="bg-slate-50 border-b border-slate-200">
@@ -379,7 +390,7 @@ const App: React.FC = () => {
         </section>
 
         {/* 五、教学内容衔接 */}
-        <section className="mb-16">
+        <section className="mb-16 relative z-10">
           <SectionTitle num="05" title="教学内容衔接" onClear={() => clearSection('connection')} />
           <div className={`border border-slate-100 overflow-hidden bg-slate-50/30 transition-all ${isPreview ? 'rounded-none' : 'rounded-3xl'}`}>
             { [
@@ -407,13 +418,13 @@ const App: React.FC = () => {
         </section>
 
         {/* 六、沟通备忘录 */}
-        <section className="mb-16 page-break-before">
+        <section className="mb-16 page-break-before relative z-10">
           <SectionTitle num="06" title="课后沟通备忘录" onClear={() => clearSection('feedback')} />
           <div className={`border border-slate-200 overflow-hidden shadow-sm transition-all ${isPreview ? 'rounded-none border-slate-400' : 'rounded-2xl'}`}>
             <table className="w-full border-collapse table-fixed">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-400 font-zh text-xs font-bold uppercase">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-400 font-zh text-xs font-bold uppercase tracking-widest">
                 <tr>
-                  <th className="p-4 w-[18%] border-r border-slate-200">沟通对象</th>
+                  <th className="p-4 w-[18%] border-r border-slate-200 text-center">沟通对象</th>
                   <th className="p-4 w-[32%] border-r border-slate-200">具体内容</th>
                   <th className="p-4 w-[25%] border-r border-slate-200">时间</th>
                   <th className="p-4 w-[25%]">后续跟进</th>
@@ -421,13 +432,14 @@ const App: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {[
-                  { label: '学员', p: 'student' },
-                  { label: '家长反馈', p: 'parent' },
-                  { label: '教学搭档', p: 'partner' },
+                  { label: '学员', sub: 'Student', p: 'student' },
+                  { label: '家长反馈', sub: 'Parent', p: 'parent' },
+                  { label: '教学搭档', sub: 'Partner', p: 'partner' },
                 ].map(row => (
                   <tr key={row.p} className={`${isPreview ? '' : 'hover:bg-slate-50/30'}`}>
                     <td className="p-6 font-zh text-center border-r border-slate-200 bg-slate-50/10">
-                      <div className="font-bold text-slate-700">{row.label}</div>
+                      <div className="font-zh font-bold text-[14px] text-slate-500 leading-tight">{row.label}</div>
+                      <div className="font-en text-[9px] text-slate-400 uppercase tracking-tighter mt-1 opacity-70">{row.sub}</div>
                     </td>
                     {['content', 'time', 'plan'].map((field, idx) => (
                       <td key={field} className={`p-2 align-top ${idx < 2 ? 'border-r border-slate-200' : ''}`}>
@@ -448,8 +460,9 @@ const App: React.FC = () => {
         </section>
 
         {/* 页脚 */}
-        <div className="mt-24 pt-10 border-t border-slate-100 text-center">
-          <p className="text-slate-300 font-en text-[10px] tracking-[0.6em] uppercase">Private & Confidential • Professional English Teaching Plan</p>
+        <div className="mt-24 pt-10 border-t border-slate-100 text-center relative z-10">
+          <p className="text-slate-400 font-en text-[10px] tracking-[0.1em] uppercase font-bold text-center">CAMPUPRO ENGLISH Training & Development Department</p>
+          <p className="text-slate-300 font-en text-[8px] tracking-[0.4em] uppercase mt-1">Private & Confidential • Professional English Teaching Plan</p>
         </div>
       </div>
 
