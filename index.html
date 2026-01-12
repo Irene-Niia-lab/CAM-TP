@@ -19,8 +19,13 @@
         }
 
         .font-zh { font-family: 'Microsoft YaHei', sans-serif; }
-        /* font-en now serves as the style for filled content: Calibri prioritized, italicized */
-        .font-en { 
+        
+        /* 
+           Specific style for editable content: 
+           Picks Calibri for EN/Numbers, YaHei for ZH. 
+           Set to Italic per user request.
+        */
+        .font-content { 
             font-family: 'Calibri', 'Microsoft YaHei', sans-serif; 
             font-style: italic;
         }
@@ -42,6 +47,5 @@
 </head>
 <body class="font-zh">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

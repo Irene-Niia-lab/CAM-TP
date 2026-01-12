@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { TeachingPlan, Game, ImplementationStep } from './types';
 
@@ -39,7 +40,6 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('teaching-plan-v5', JSON.stringify(data));
     const { level, unit, lessonNo } = data.basic;
-    // Filename format: 02.PU[Level] U[Unit]L[LessonNo] Teaching Plan
     const fileName = `02.PU${level || ''} U${unit || ''}L${lessonNo || ''} Teaching Plan`.replace(/\s+/g, ' ').trim();
     document.title = fileName;
   }, [data]);
@@ -55,6 +55,31 @@ const App: React.FC = () => {
       current[keys[keys.length - 1]] = value;
       return next;
     });
+  };
+
+  /**
+   * Helper to ensure only plain text is pasted, stripping all external formatting.
+   */
+  const handlePaste = (
+    e: React.ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>, 
+    callback: (v: string) => void
+  ) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    const target = e.currentTarget;
+    const start = target.selectionStart || 0;
+    const end = target.selectionEnd || 0;
+    const currentVal = target.value;
+    const newValue = currentVal.substring(0, start) + text + currentVal.substring(end);
+    callback(newValue);
+
+    // If it's a textarea, trigger height resize after update
+    if (target instanceof HTMLTextAreaElement) {
+        setTimeout(() => {
+            target.style.height = 'auto';
+            target.style.height = target.scrollHeight + 'px';
+        }, 0);
+    }
   };
 
   const clearSection = (section: keyof TeachingPlan) => {
@@ -137,8 +162,9 @@ const App: React.FC = () => {
         <textarea
           rows={1}
           readOnly={isPreview}
-          className={`w-full outline-none border-none resize-none font-en text-lg text-slate-900 bg-transparent placeholder-slate-200 focus:text-indigo-900 overflow-hidden leading-relaxed ${isPreview ? 'cursor-default' : ''}`}
+          className={`w-full outline-none border-none resize-none font-content text-lg text-slate-900 bg-transparent placeholder-slate-200 focus:text-indigo-900 overflow-hidden leading-relaxed ${isPreview ? 'cursor-default' : ''}`}
           value={value}
+          onPaste={(e) => handlePaste(e, onChange)}
           onChange={e => {
             onChange(e.target.value);
             e.target.style.height = 'auto';
@@ -214,7 +240,7 @@ const App: React.FC = () => {
         
         {/* Background Watermark */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.03] overflow-hidden select-none z-0 text-center">
-          <span className="text-[60px] font-bold font-en -rotate-45 whitespace-nowrap">CAMPUPRO ENGLISH<br/>Training & Development Department</span>
+          <span className="text-[60px] font-bold font-content -rotate-45 whitespace-nowrap">CAMPUPRO ENGLISH<br/>Training & Development Department</span>
         </div>
 
         {/* Header */}
@@ -223,37 +249,38 @@ const App: React.FC = () => {
           <div className="mt-4 flex flex-col items-center justify-center gap-2">
             <div className="flex items-center gap-4">
               <span className="h-[1px] w-12 bg-indigo-100"></span>
-              <p className="text-indigo-400 font-en text-xs tracking-[0.1em] uppercase font-bold text-center">CAMPUPRO ENGLISH Training & Development Department</p>
+              <p className="text-indigo-400 font-content text-xs tracking-[0.1em] uppercase font-bold text-center">CAMPUPRO ENGLISH Training & Development Department</p>
               <span className="h-[1px] w-12 bg-indigo-100"></span>
             </div>
-            <p className="text-slate-300 font-en text-[9px] tracking-[0.4em] uppercase font-medium">Teaching Plan Template</p>
+            <p className="text-slate-300 font-content text-[9px] tracking-[0.4em] uppercase font-medium">Teaching Plan Template</p>
           </div>
         </div>
 
         {/* 01 Basic Info */}
         <section className="mb-16 relative z-10">
           <SectionTitle num="01" title="基础课程信息" onClear={() => clearSection('basic')} />
-          <div className={`grid grid-cols-2 border border-slate-200 rounded-2xl overflow-hidden transition-all ${isPreview ? 'rounded-none' : ''}`}>
+          <div className={`grid grid-cols-2 border border-slate-200 rounded-2xl overflow-hidden transition-all ${isPreview ? 'rounded-none border-slate-400' : ''}`}>
             {[
-              { label: '课程级别', path: 'basic.level' },
-              { label: '单元', path: 'basic.unit' },
-              { label: '课号', path: 'basic.lessonNo' },
-              { label: '课程时长', path: 'basic.duration' },
-              { label: '授课班级', path: 'basic.className' },
-              { label: '学员人数', path: 'basic.studentCount' },
-              { label: '授课日期', path: 'basic.date' },
+              { label: '课程级别', path: 'basic.level', placeholder: '如: 1' },
+              { label: '单元', path: 'basic.unit', placeholder: '如: 7' },
+              { label: '课号', path: 'basic.lessonNo', placeholder: '如: 1' },
+              { label: '课程时长', path: 'basic.duration', placeholder: 'Min' },
+              { label: '授课班级', path: 'basic.className', placeholder: '班级名称' },
+              { label: '学员人数', path: 'basic.studentCount', placeholder: '人数' },
+              { label: '授课日期', path: 'basic.date', placeholder: 'YYYY-MM-DD' },
             ].map((item, idx) => (
-              <div key={item.path} className={`flex border-slate-100 ${idx % 2 === 0 ? 'border-r' : ''} ${idx < 6 ? 'border-b' : ''} ${idx === 6 ? 'col-span-2' : ''}`}>
-                <div className="w-[100px] bg-slate-50/50 p-4 font-zh font-bold text-sm text-slate-500 flex items-center justify-center text-center">
+              <div key={item.path} className={`flex border-slate-100 ${idx % 2 === 0 ? 'border-r' : ''} ${idx < 6 ? 'border-b' : ''} ${idx === 6 ? 'col-span-2' : ''} ${isPreview ? 'border-slate-400' : ''}`}>
+                <div className={`w-[110px] bg-slate-50/50 p-4 font-zh font-bold text-sm text-slate-500 flex items-center justify-center text-center ${isPreview ? 'bg-transparent border-r border-slate-400' : ''}`}>
                   {item.label}
                 </div>
                 <div className="flex-1 p-3">
                   <input 
                     readOnly={isPreview}
-                    className={`w-full outline-none border-none font-en text-center text-lg text-slate-800 placeholder-slate-200 bg-transparent ${isPreview ? 'cursor-default' : ''}`} 
+                    className={`w-full outline-none border-none font-content text-center text-lg text-slate-800 placeholder-slate-200 bg-transparent ${isPreview ? 'cursor-default' : ''}`} 
                     value={getValueByPath(data, item.path)} 
+                    onPaste={(e) => handlePaste(e, (v) => update(item.path, v))}
                     onChange={e => update(item.path, e.target.value)} 
-                    placeholder={isPreview ? "" : "待填写"} 
+                    placeholder={isPreview ? "" : item.placeholder} 
                   />
                 </div>
               </div>
@@ -308,7 +335,7 @@ const App: React.FC = () => {
               </div>
               <div className="space-y-8">
                 {data.games.map((game, i) => (
-                  <div key={i} className={`group/game relative p-8 bg-slate-50/50 border border-slate-100 transition-all ${isPreview ? 'rounded-none' : 'rounded-3xl shadow-sm'}`}>
+                  <div key={i} className={`group/game relative p-8 bg-slate-50/50 border border-slate-100 transition-all ${isPreview ? 'rounded-none border-slate-400 bg-transparent' : 'rounded-3xl shadow-sm'}`}>
                     {!isPreview && data.games.length > 1 && (
                       <div className="absolute top-6 right-6 opacity-0 group-hover/game:opacity-100 transition-opacity">
                         <ActionButton onClick={() => removeGame(i)} label="删除" variant="remove" />
@@ -365,6 +392,7 @@ const App: React.FC = () => {
                         className="w-full outline-none border-none resize-none font-zh text-[13px] font-bold text-slate-700 text-center bg-transparent" 
                         value={step.step} 
                         rows={2} 
+                        onPaste={(e) => handlePaste(e, (v) => { const s = [...data.steps]; s[i].step = v; setData({ ...data, steps: s }); })}
                         onChange={e => { const s = [...data.steps]; s[i].step = e.target.value; setData({ ...data, steps: s }); }} 
                         placeholder={isPreview ? "" : `步骤 ${i+1}`} 
                       />
@@ -372,8 +400,9 @@ const App: React.FC = () => {
                     <td className="p-3 align-top border-r border-slate-200">
                       <textarea 
                         readOnly={isPreview} 
-                        className="w-full outline-none border-none resize-none font-en text-sm text-center text-indigo-500 font-bold bg-transparent" 
+                        className="w-full outline-none border-none resize-none font-content text-sm text-center text-indigo-500 font-bold bg-transparent" 
                         value={step.duration} 
+                        onPaste={(e) => handlePaste(e, (v) => { const s = [...data.steps]; s[i].duration = v; setData({ ...data, steps: s }); })}
                         onChange={e => { const s = [...data.steps]; s[i].duration = e.target.value; setData({ ...data, steps: s }); }} 
                         placeholder={isPreview ? "" : "Min"} 
                       />
@@ -382,8 +411,9 @@ const App: React.FC = () => {
                       <td key={field} className={`p-3 align-top ${idx < 3 ? 'border-r border-slate-200' : ''}`}>
                         <textarea 
                           readOnly={isPreview} 
-                          className="w-full outline-none border-none resize-none font-en text-sm text-slate-600 bg-transparent min-h-[140px] leading-relaxed" 
+                          className="w-full outline-none border-none resize-none font-content text-sm text-slate-600 bg-transparent min-h-[140px] leading-relaxed" 
                           value={(step as any)[field]} 
+                          onPaste={(e) => handlePaste(e, (v) => { const s = [...data.steps]; (s[i] as any)[field] = v; setData({ ...data, steps: s }); })}
                           onChange={e => { const s = [...data.steps]; (s[i] as any)[field] = e.target.value; setData({ ...data, steps: s }); }} 
                           placeholder="..." 
                         />
@@ -410,22 +440,23 @@ const App: React.FC = () => {
         {/* 05 Connection */}
         <section className="mb-16 relative z-10">
           <SectionTitle num="05" title="教学内容衔接" onClear={() => clearSection('connection')} />
-          <div className={`border border-slate-100 overflow-hidden bg-slate-50/30 transition-all ${isPreview ? 'rounded-none' : 'rounded-3xl'}`}>
+          <div className={`border border-slate-100 overflow-hidden bg-slate-50/30 transition-all ${isPreview ? 'rounded-none border-slate-400 bg-transparent' : 'rounded-3xl'}`}>
             { [
               { label: '本次课核心回顾', path: 'connection.review' },
               { label: '下次课主题预告', path: 'connection.preview' },
               { label: '预习任务布置', path: 'connection.homework' },
               { label: '教具衔接准备', path: 'connection.prep' },
             ].map((item, idx) => (
-              <div key={item.path} className={`flex ${idx !== 0 ? 'border-t border-slate-100' : ''}`}>
-                <div className="w-[180px] p-8 font-zh font-bold text-sm text-slate-400 border-r border-slate-100 flex items-center justify-center text-center">
+              <div key={item.path} className={`flex ${idx !== 0 ? 'border-t border-slate-100' : ''} ${isPreview ? 'border-slate-400' : ''}`}>
+                <div className={`w-[180px] p-8 font-zh font-bold text-sm text-slate-400 border-r border-slate-100 flex items-center justify-center text-center ${isPreview ? 'border-slate-400' : ''}`}>
                   {item.label}
                 </div>
                 <div className="flex-1">
                   <textarea
                     readOnly={isPreview}
-                    className={`w-full p-8 outline-none border-none resize-none font-en text-lg text-slate-800 bg-transparent placeholder-slate-200 min-h-[120px] leading-relaxed transition-colors ${isPreview ? 'cursor-default' : 'focus:bg-white/50'}`}
+                    className={`w-full p-8 outline-none border-none resize-none font-content text-lg text-slate-800 bg-transparent placeholder-slate-200 min-h-[120px] leading-relaxed transition-colors ${isPreview ? 'cursor-default' : 'focus:bg-white/50'}`}
                     value={getValueByPath(data, item.path)}
+                    onPaste={(e) => handlePaste(e, (v) => update(item.path, v))}
                     onChange={e => update(item.path, e.target.value)}
                     placeholder={isPreview ? "" : PLACEHOLDER}
                   />
@@ -457,14 +488,15 @@ const App: React.FC = () => {
                   <tr key={row.p} className={`${isPreview ? '' : 'hover:bg-slate-50/30'}`}>
                     <td className="p-6 font-zh text-center border-r border-slate-200 bg-slate-50/10">
                       <div className="font-zh font-bold text-[14px] text-slate-500 leading-tight">{row.label}</div>
-                      <div className="font-en text-[9px] text-slate-400 uppercase tracking-tighter mt-1 opacity-70">{row.sub}</div>
+                      <div className="font-content text-[9px] text-slate-400 uppercase tracking-tighter mt-1 opacity-70">{row.sub}</div>
                     </td>
                     {['content', 'time', 'plan'].map((field, idx) => (
                       <td key={field} className={`p-2 align-top ${idx < 2 ? 'border-r border-slate-200' : ''}`}>
                         <textarea
                           readOnly={isPreview}
-                          className="w-full p-3 outline-none border-none resize-none font-en text-base text-slate-600 bg-transparent min-h-[150px] leading-relaxed"
+                          className="w-full p-3 outline-none border-none resize-none font-content text-base text-slate-600 bg-transparent min-h-[150px] leading-relaxed"
                           value={getValueByPath(data, `feedback.${row.p}.${field}`)}
+                          onPaste={(e) => handlePaste(e, (v) => update(`feedback.${row.p}.${field}`, v))}
                           onChange={e => update(`feedback.${row.p}.${field}`, e.target.value)}
                           placeholder={isPreview ? "" : "..."}
                         />
@@ -479,8 +511,8 @@ const App: React.FC = () => {
 
         {/* Footer */}
         <div className="mt-24 pt-10 border-t border-slate-100 text-center relative z-10">
-          <p className="text-slate-400 font-en text-[10px] tracking-[0.1em] uppercase font-bold text-center">CAMPUPRO ENGLISH Training & Development Department</p>
-          <p className="text-slate-300 font-en text-[8px] tracking-[0.4em] uppercase mt-1">Private & Confidential • Professional English Teaching Plan</p>
+          <p className="text-slate-400 font-content text-[10px] tracking-[0.1em] uppercase font-bold text-center">CAMPUPRO ENGLISH Training & Development Department</p>
+          <p className="text-slate-300 font-content text-[8px] tracking-[0.4em] uppercase mt-1">Private & Confidential • Professional English Teaching Plan</p>
         </div>
       </div>
 
@@ -503,13 +535,13 @@ const App: React.FC = () => {
           @page { margin: 10mm; size: A4; }
           textarea::placeholder { color: transparent !important; }
           
-          .border-slate-200 { border-color: #cbd5e1 !important; }
-          .border-slate-100 { border-color: #e2e8f0 !important; }
+          .border-slate-200 { border-color: #000 !important; }
+          .border-slate-100 { border-color: #000 !important; }
+          .border-slate-400 { border-color: #000 !important; }
         }
         
         .font-zh { font-family: "Microsoft YaHei", sans-serif; }
-        /* Mixed font: English in Calibri Italic, Chinese in YaHei Oblique */
-        .font-en { 
+        .font-content { 
           font-family: "Calibri", "Microsoft YaHei", sans-serif; 
           font-style: italic;
         }
