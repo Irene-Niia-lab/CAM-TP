@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { TeachingPlan, Game, ImplementationStep } from './types';
 
@@ -40,8 +39,8 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('teaching-plan-v5', JSON.stringify(data));
     const { level, unit, lessonNo } = data.basic;
-    // 导出文件名格式 02.PU[级别] U[单元]L[课号] Teaching Plan
-    const fileName = `02.PU${level || ''} U${unit || '' }L${lessonNo || ''} Teaching Plan`.replace(/\s+/g, ' ').trim();
+    // Filename format: 02.PU[Level] U[Unit]L[LessonNo] Teaching Plan
+    const fileName = `02.PU${level || ''} U${unit || ''}L${lessonNo || ''} Teaching Plan`.replace(/\s+/g, ' ').trim();
     document.title = fileName;
   }, [data]);
 
@@ -172,7 +171,7 @@ const App: React.FC = () => {
   return (
     <div className={`min-h-screen transition-colors duration-500 py-12 px-4 print:p-0 print:bg-white ${isPreview ? 'bg-slate-800' : 'bg-slate-50'}`}>
       
-      {/* 顶部退出预览条 */}
+      {/* Top Exit Preview Bar */}
       {isPreview && (
         <div className="no-print fixed top-0 left-0 w-full flex justify-center py-4 bg-slate-900/50 backdrop-blur-md z-[60] animate-in fade-in slide-in-from-top-4">
           <button 
@@ -185,7 +184,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* 现代悬浮控制栏 */}
+      {/* Floating Control Panel */}
       <div className={`no-print fixed top-8 right-8 flex flex-col gap-4 z-50 transition-all duration-300 ${isPreview ? 'opacity-0 pointer-events-none translate-x-10' : 'opacity-100'}`}>
         <button 
           onClick={handlePrint} 
@@ -213,12 +212,12 @@ const App: React.FC = () => {
 
       <div className={`paper mx-auto bg-white transition-all duration-500 print:shadow-none print:p-[15mm] print:rounded-none relative ${isPreview ? 'p-[20mm] rounded-none shadow-2xl scale-[0.98]' : 'p-[25mm] rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.03)]'}`} style={{ maxWidth: '210mm' }}>
         
-        {/* 背景水印 */}
+        {/* Background Watermark */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.03] overflow-hidden select-none z-0 text-center">
           <span className="text-[60px] font-bold font-en -rotate-45 whitespace-nowrap">CAMPUPRO ENGLISH<br/>Training & Development Department</span>
         </div>
 
-        {/* 精致页眉 */}
+        {/* Header */}
         <div className="text-center mb-20 relative z-10">
           <h1 className="text-4xl font-bold font-zh text-slate-900 tracking-[0.15em]">少儿英语线下课课堂教案</h1>
           <div className="mt-4 flex flex-col items-center justify-center gap-2">
@@ -231,7 +230,7 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* 一、基础课程信息 */}
+        {/* 01 Basic Info */}
         <section className="mb-16 relative z-10">
           <SectionTitle num="01" title="基础课程信息" onClear={() => clearSection('basic')} />
           <div className={`grid grid-cols-2 border border-slate-200 rounded-2xl overflow-hidden transition-all ${isPreview ? 'rounded-none' : ''}`}>
@@ -262,7 +261,7 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* 二、教学目标 */}
+        {/* 02 Teaching Objectives */}
         <section className="mb-16 relative z-10">
           <SectionTitle num="02" title="核心教学目标" onClear={() => clearSection('objectives')} />
           <div className="flex flex-col space-y-12">
@@ -287,7 +286,7 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* 三、教具与游戏 */}
+        {/* 03 Games & Materials */}
         <section className="mb-16 relative z-10">
           <SectionTitle num="03" title="教具与互动准备" onClear={() => { clearSection('materials'); clearSection('games'); }} />
           <div className="flex flex-col space-y-12">
@@ -333,7 +332,7 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* 四、课程实施 */}
+        {/* 04 Implementation */}
         <section className="mb-16 page-break-before relative z-10">
           <SectionTitle num="04" title="教学环节实施" onClear={() => clearSection('steps')} />
           <div className={`border border-slate-200 overflow-hidden shadow-sm transition-all ${isPreview ? 'rounded-none border-slate-400' : 'rounded-2xl'}`}>
@@ -361,14 +360,33 @@ const App: React.FC = () => {
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M20 12H4"/></svg>
                         </button>
                       )}
-                      <textarea readOnly={isPreview} className="w-full outline-none border-none resize-none font-zh text-[13px] font-bold text-slate-700 text-center bg-transparent" value={step.step} rows={2} onChange={e => { const s = [...data.steps]; s[i].step = e.target.value; setData({ ...data, steps: s }); }} placeholder={isPreview ? "" : `步骤 ${i+1}`} />
+                      <textarea 
+                        readOnly={isPreview} 
+                        className="w-full outline-none border-none resize-none font-zh text-[13px] font-bold text-slate-700 text-center bg-transparent" 
+                        value={step.step} 
+                        rows={2} 
+                        onChange={e => { const s = [...data.steps]; s[i].step = e.target.value; setData({ ...data, steps: s }); }} 
+                        placeholder={isPreview ? "" : `步骤 ${i+1}`} 
+                      />
                     </td>
                     <td className="p-3 align-top border-r border-slate-200">
-                      <textarea readOnly={isPreview} className="w-full outline-none border-none resize-none font-en text-sm text-center text-indigo-500 font-bold bg-transparent" value={step.duration} onChange={e => { const s = [...data.steps]; s[i].duration = e.target.value; setData({ ...data, steps: s }); }} placeholder={isPreview ? "" : "Min"} />
+                      <textarea 
+                        readOnly={isPreview} 
+                        className="w-full outline-none border-none resize-none font-en text-sm text-center text-indigo-500 font-bold bg-transparent" 
+                        value={step.duration} 
+                        onChange={e => { const s = [...data.steps]; s[i].duration = e.target.value; setData({ ...data, steps: s }); }} 
+                        placeholder={isPreview ? "" : "Min"} 
+                      />
                     </td>
                     {['design', 'instructions', 'notes', 'blackboard'].map((field, idx) => (
                       <td key={field} className={`p-3 align-top ${idx < 3 ? 'border-r border-slate-200' : ''}`}>
-                        <textarea readOnly={isPreview} className="w-full outline-none border-none resize-none font-en text-sm text-slate-600 bg-transparent min-h-[140px] leading-relaxed" value={(step as any)[field]} onChange={e => { const s = [...data.steps]; (s[i] as any)[field] = e.target.value; setData({ ...data, steps: s }); }} placeholder="..." />
+                        <textarea 
+                          readOnly={isPreview} 
+                          className="w-full outline-none border-none resize-none font-en text-sm text-slate-600 bg-transparent min-h-[140px] leading-relaxed" 
+                          value={(step as any)[field]} 
+                          onChange={e => { const s = [...data.steps]; (s[i] as any)[field] = e.target.value; setData({ ...data, steps: s }); }} 
+                          placeholder="..." 
+                        />
                       </td>
                     ))}
                   </tr>
@@ -389,7 +407,7 @@ const App: React.FC = () => {
           )}
         </section>
 
-        {/* 五、教学内容衔接 */}
+        {/* 05 Connection */}
         <section className="mb-16 relative z-10">
           <SectionTitle num="05" title="教学内容衔接" onClear={() => clearSection('connection')} />
           <div className={`border border-slate-100 overflow-hidden bg-slate-50/30 transition-all ${isPreview ? 'rounded-none' : 'rounded-3xl'}`}>
@@ -417,7 +435,7 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* 六、沟通备忘录 */}
+        {/* 06 Feedback */}
         <section className="mb-16 page-break-before relative z-10">
           <SectionTitle num="06" title="课后沟通备忘录" onClear={() => clearSection('feedback')} />
           <div className={`border border-slate-200 overflow-hidden shadow-sm transition-all ${isPreview ? 'rounded-none border-slate-400' : 'rounded-2xl'}`}>
@@ -459,7 +477,7 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* 页脚 */}
+        {/* Footer */}
         <div className="mt-24 pt-10 border-t border-slate-100 text-center relative z-10">
           <p className="text-slate-400 font-en text-[10px] tracking-[0.1em] uppercase font-bold text-center">CAMPUPRO ENGLISH Training & Development Department</p>
           <p className="text-slate-300 font-en text-[8px] tracking-[0.4em] uppercase mt-1">Private & Confidential • Professional English Teaching Plan</p>
@@ -490,13 +508,18 @@ const App: React.FC = () => {
         }
         
         .font-zh { font-family: "Microsoft YaHei", sans-serif; }
-        .font-en { font-family: "ShuYaoHengshui", cursive, serif; }
+        /* Mixed font: English in Calibri Italic, Chinese in YaHei Oblique */
+        .font-en { 
+          font-family: "Calibri", "Microsoft YaHei", sans-serif; 
+          font-style: italic;
+        }
         
         textarea::placeholder { 
           font-family: "Microsoft YaHei"; 
           font-size: 0.75rem; 
           opacity: 0.3;
           color: #94a3b8;
+          font-style: normal;
         }
 
         textarea::-webkit-scrollbar { width: 0; height: 0; }
