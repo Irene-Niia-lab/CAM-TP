@@ -149,10 +149,10 @@ const App: React.FC = () => {
   const PLACEHOLDER = "点击填写内容...";
 
   const SectionTitle = ({ num, title, onClear }: { num: string, title: string, onClear?: () => void }) => (
-    <div className="flex items-center mb-8 mt-4 group/title">
-      <div className="w-1.5 h-8 bg-indigo-500 rounded-full mr-4 print:bg-slate-800"></div>
+    <div className="flex items-center mb-8 mt-4 group/title section-title-container">
+      <div className="w-1.5 h-8 bg-indigo-500 rounded-full mr-4 print-indigo-bar"></div>
       <div className="flex items-baseline">
-        <span className="text-indigo-500 font-bold text-2xl mr-2 opacity-50 print:text-slate-800 print:opacity-100">{num}.</span>
+        <span className="text-indigo-500 font-bold text-2xl mr-2 opacity-50 print-indigo-text">{num}.</span>
         <h2 className="text-xl font-bold font-zh text-slate-800 tracking-wide">{title}</h2>
       </div>
       {!isPreview && onClear && (
@@ -165,12 +165,12 @@ const App: React.FC = () => {
           清空模块
         </button>
       )}
-      <div className="flex-1 ml-6 h-[1px] bg-slate-100 print:bg-slate-300"></div>
+      <div className="flex-1 ml-6 h-[1px] bg-slate-100 section-divider"></div>
     </div>
   );
 
   const EditableLine = ({ label, value, onChange, prefix }: { label: string, value: string, onChange: (v: string) => void, prefix?: string }) => (
-    <div className={`group flex items-start py-3 border-b border-slate-50 transition-all ${isPreview ? 'border-transparent' : 'hover:border-indigo-100'} print:border-slate-200`}>
+    <div className={`group flex items-start py-3 border-b border-slate-50 transition-all ${isPreview ? 'border-transparent' : 'hover:border-indigo-100'} print-line-border`}>
       <div className="flex-shrink-0 font-bold text-[15px] font-zh min-w-[140px] text-slate-600 pt-1 print:text-slate-800">
         {prefix && <span className="mr-2 text-indigo-400 font-normal no-print">{prefix}</span>}
         {label}
@@ -253,7 +253,7 @@ const App: React.FC = () => {
         </button>
       </div>
 
-      <div className={`paper mx-auto bg-white transition-all duration-500 print:shadow-none print:p-[15mm] print:rounded-none relative ${isPreview ? 'p-[20mm] rounded-none shadow-2xl scale-[0.98]' : 'p-[25mm] rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.03)]'}`} style={{ maxWidth: '210mm' }}>
+      <div className={`paper mx-auto bg-white transition-all duration-500 print-paper relative ${isPreview ? 'p-[20mm] rounded-none shadow-2xl scale-[0.98]' : 'p-[25mm] rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.03)]'}`} style={{ maxWidth: '210mm' }}>
         
         {/* Background Watermark - 添加 no-print 类以在导出时隐藏 */}
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.03] overflow-hidden select-none z-0 text-center no-print">
@@ -261,22 +261,22 @@ const App: React.FC = () => {
         </div>
 
         {/* Header */}
-        <div className="text-center mb-20 relative z-10">
-          <h1 className="text-4xl font-bold font-zh text-slate-900 tracking-[0.15em] print:text-3xl print:tracking-tight print:mb-2">少儿英语线下课课堂教案</h1>
-          <div className="mt-4 flex flex-col items-center justify-center gap-2 print:mt-1">
+        <div className="text-center mb-20 relative z-10 print-header">
+          <h1 className="text-4xl font-bold font-zh text-slate-900 tracking-[0.15em]">少儿英语线下课课堂教案</h1>
+          <div className="mt-4 flex flex-col items-center justify-center gap-2">
             <div className="flex items-center gap-4">
-              <span className="h-[1px] w-12 bg-indigo-100 print:hidden"></span>
-              <p className="text-indigo-400 font-content text-xs tracking-[0.1em] uppercase font-bold text-center print:text-slate-500 print:text-[10px] print:italic">CAMPUPRO ENGLISH Training & Development Department</p>
-              <span className="h-[1px] w-12 bg-indigo-100 print:hidden"></span>
+              <span className="h-[1px] w-12 bg-indigo-100 print:bg-slate-200"></span>
+              <p className="text-indigo-400 font-content text-xs tracking-[0.1em] uppercase font-bold text-center print:text-slate-500">CAMPUPRO ENGLISH Training & Development Department</p>
+              <span className="h-[1px] w-12 bg-indigo-100 print:bg-slate-200"></span>
             </div>
             <p className="text-slate-300 font-content text-[9px] tracking-[0.4em] uppercase font-medium print:hidden">Teaching Plan Template</p>
           </div>
         </div>
 
         {/* 01 Basic Info */}
-        <section className="mb-16 relative z-10 print:mb-8">
+        <section className="mb-16 relative z-10 print-section">
           <SectionTitle num="01" title="基础课程信息" onClear={() => clearSection('basic')} />
-          <div className={`grid grid-cols-2 border border-slate-200 rounded-2xl overflow-hidden transition-all ${isPreview ? 'rounded-none border-slate-400' : ''} print:border-slate-800 print:rounded-none`}>
+          <div className={`grid grid-cols-2 border border-slate-200 rounded-2xl overflow-hidden transition-all ${isPreview ? 'rounded-none border-slate-400' : ''} print-grid-border`}>
             {[
               { label: '课程级别', path: 'basic.level', placeholder: '如: 1' },
               { label: '单元', path: 'basic.unit', placeholder: '如: 7' },
@@ -286,14 +286,14 @@ const App: React.FC = () => {
               { label: '学员人数', path: 'basic.studentCount', placeholder: '人数' },
               { label: '授课日期', path: 'basic.date', placeholder: 'YYYY-MM-DD' },
             ].map((item, idx) => (
-              <div key={item.path} className={`flex border-slate-100 ${idx % 2 === 0 ? 'border-r' : ''} ${idx < 6 ? 'border-b' : ''} ${idx === 6 ? 'col-span-2' : ''} ${isPreview ? 'border-slate-400' : ''} print:border-slate-800`}>
-                <div className={`w-[110px] bg-slate-50/50 p-4 font-zh font-bold text-sm text-slate-500 flex items-center justify-center text-center ${isPreview ? 'bg-transparent border-r border-slate-400' : ''} print:bg-slate-50 print:text-slate-800 print:text-xs print:font-bold`}>
+              <div key={item.path} className={`flex border-slate-100 ${idx % 2 === 0 ? 'border-r' : ''} ${idx < 6 ? 'border-b' : ''} ${idx === 6 ? 'col-span-2' : ''} ${isPreview ? 'border-slate-400' : ''} print-cell-border`}>
+                <div className={`w-[110px] bg-slate-50/50 p-4 font-zh font-bold text-sm text-slate-500 flex items-center justify-center text-center print:bg-slate-50 print:text-slate-800`}>
                   {item.label}
                 </div>
-                <div className="flex-1 p-3 print:p-2">
+                <div className="flex-1 p-3">
                   <input 
                     readOnly={isPreview}
-                    className={`w-full outline-none border-none font-content text-center text-lg text-slate-800 placeholder-slate-200 bg-transparent ${isPreview ? 'cursor-default' : ''} print:text-black print:text-base`} 
+                    className="w-full outline-none border-none font-content text-center text-lg text-slate-800 placeholder-slate-200 bg-transparent print:text-black" 
                     value={getValueByPath(data, item.path)} 
                     onPaste={(e) => handlePaste(e, (v) => update(item.path, v))}
                     onChange={e => update(item.path, e.target.value)} 
@@ -306,100 +306,47 @@ const App: React.FC = () => {
         </section>
 
         {/* 02 Teaching Objectives */}
-        <section className="mb-16 relative z-10 print:mb-8">
+        <section className="mb-16 relative z-10 print-section">
           <SectionTitle num="02" title="核心教学目标" onClear={() => clearSection('objectives')} />
           <div className="flex flex-col space-y-12 print:space-y-6">
             <div>
-              <h3 className="text-sm font-bold font-zh text-indigo-500 mb-4 uppercase tracking-widest print:text-slate-800 print:mb-2 print:text-xs">（一）词汇目标 / Vocabulary</h3>
+              <h3 className="text-sm font-bold font-zh text-indigo-500 mb-4 uppercase tracking-widest print:text-slate-800">（一）词汇目标 / Vocabulary</h3>
               <EditableLine label="核心单词 (四会)" value={data.objectives.vocab.core} onChange={v => update('objectives.vocab.core', v)} />
               <EditableLine label="基础单词 (三会)" value={data.objectives.vocab.basic} onChange={v => update('objectives.vocab.basic', v)} />
               <EditableLine label="卫星单词 (二会)" value={data.objectives.vocab.satellite} onChange={v => update('objectives.vocab.satellite', v)} />
             </div>
             <div>
-              <h3 className="text-sm font-bold font-zh text-indigo-500 mb-4 uppercase tracking-widest print:text-slate-800 print:mb-2 print:text-xs">（二）句型目标 / Sentences</h3>
+              <h3 className="text-sm font-bold font-zh text-indigo-500 mb-4 uppercase tracking-widest print:text-slate-800">（二）句型目标 / Sentences</h3>
               <EditableLine label="核心句型" value={data.objectives.patterns.core} onChange={v => update('objectives.patterns.core', v)} />
               <EditableLine label="基础句型" value={data.objectives.patterns.basic} onChange={v => update('objectives.patterns.basic', v)} />
               <EditableLine label="卫星句型" value={data.objectives.patterns.satellite} onChange={v => update('objectives.patterns.satellite', v)} />
             </div>
-            <div>
-              <h3 className="text-sm font-bold font-zh text-indigo-500 mb-4 uppercase tracking-widest print:text-slate-800 print:mb-2 print:text-xs">（三）拓展语言目标 / Expansion</h3>
-              <EditableLine label="文化拓展" value={data.objectives.expansion.culture} onChange={v => update('objectives.expansion.culture', v)} />
-              <EditableLine label="日常表达拓展" value={data.objectives.expansion.daily} onChange={v => update('objectives.expansion.daily', v)} />
-              <EditableLine label="行为习惯培养" value={data.objectives.expansion.habits} onChange={v => update('objectives.expansion.habits', v)} />
-            </div>
           </div>
         </section>
 
-        {/* 03 Games & Materials */}
-        <section className="mb-16 relative z-10 print:mb-8">
-          <SectionTitle num="03" title="教具与互动准备" onClear={() => { clearSection('materials'); clearSection('games'); }} />
-          <div className="flex flex-col space-y-12 print:space-y-6">
-            <div>
-              <h3 className="text-sm font-bold font-zh text-slate-400 mb-4 uppercase tracking-widest print:text-slate-800 print:mb-2 print:text-xs">（一）教具清单</h3>
-              <div className="space-y-1">
-                <EditableLine label="词汇卡片" value={data.materials.cards} onChange={v => update('materials.cards', v)} />
-                <EditableLine label="实物教具" value={data.materials.realia} onChange={v => update('materials.realia', v)} />
-                <EditableLine label="多媒体设备" value={data.materials.multimedia} onChange={v => update('materials.multimedia', v)} />
-                <EditableLine label="奖励道具" value={data.materials.rewards} onChange={v => update('materials.rewards', v)} />
-              </div>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-4 print:mb-2">
-                <h3 className="text-sm font-bold font-zh text-slate-400 uppercase tracking-widest print:text-slate-800 print:text-xs">（二）互动游戏</h3>
-                {!isPreview && (
-                  <ActionButton onClick={addGame} label="新增游戏位置" variant="add" />
-                )}
-              </div>
-              <div className="space-y-8 print:space-y-4">
-                {data.games.map((game, i) => (
-                  <div key={i} className={`group/game relative p-8 bg-slate-50/50 border border-slate-100 transition-all ${isPreview ? 'rounded-none border-slate-400 bg-transparent' : 'rounded-3xl shadow-sm'} print:p-4 print:rounded-none print:border-slate-300 print:bg-white`}>
-                    {!isPreview && data.games.length > 1 && (
-                      <div className="absolute top-6 right-6 opacity-0 group-hover/game:opacity-100 transition-opacity no-print">
-                        <ActionButton onClick={() => removeGame(i)} label="删除" variant="remove" />
-                      </div>
-                    )}
-                    <div className="text-xs font-bold text-indigo-400 mb-6 tracking-widest uppercase flex items-center gap-2 print:text-slate-600 print:mb-2 print:font-bold">
-                      <span className="w-4 h-[1px] bg-indigo-200 print:bg-slate-300"></span>
-                      Game Session {i+1}
-                      <span className="w-4 h-[1px] bg-indigo-200 print:bg-slate-300"></span>
-                    </div>
-                    <div className="space-y-2">
-                      <EditableLine label="游戏名称" value={game.name} onChange={v => { const g = [...data.games]; g[i].name = v; setData({ ...data, games: g }); }} />
-                      <EditableLine label="游戏目的" value={game.goal} onChange={v => { const g = [...data.games]; g[i].goal = v; setData({ ...data, games: g }); }} />
-                      <EditableLine label="游戏准备" value={game.prep} onChange={v => { const g = [...data.games]; g[i].prep = v; setData({ ...data, games: g }); }} />
-                      <EditableLine label="游戏规则" value={game.rules} onChange={v => { const g = [...data.games]; g[i].rules = v; setData({ ...data, games: g }); }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 04 Implementation */}
-        <section className="mb-16 page-break-before relative z-10 print:mb-8">
-          <SectionTitle num="04" title="教学环节实施" onClear={() => clearSection('steps')} />
-          <div className={`border border-slate-200 overflow-hidden shadow-sm transition-all ${isPreview ? 'rounded-none border-slate-400' : 'rounded-2xl'} print:border-slate-800 print:rounded-none`}>
+        {/* 03 Implementation */}
+        <section className="mb-16 page-break-before relative z-10 print-section">
+          <SectionTitle num="03" title="教学环节实施" onClear={() => clearSection('steps')} />
+          <div className={`border border-slate-200 overflow-hidden shadow-sm transition-all ${isPreview ? 'rounded-none border-slate-400' : 'rounded-2xl'} print-table-border`}>
             <table className="w-full border-collapse table-fixed">
-              <thead className="bg-slate-50 border-b border-slate-200 print:bg-slate-100 print:border-slate-800">
+              <thead className="bg-slate-50 border-b border-slate-200 print:bg-slate-50">
                 <tr className="font-zh text-xs font-bold text-slate-400 uppercase tracking-tighter print:text-slate-800">
-                  <th className="p-4 w-[12%] text-center border-r border-slate-200 print:border-slate-800 print:p-2">环节</th>
-                  <th className="p-4 w-[8%] text-center border-r border-slate-200 print:border-slate-800 print:p-2">时长</th>
-                  <th className="p-4 w-[22%] text-left border-r border-slate-200 print:border-slate-800 print:p-2">教学设计</th>
-                  <th className="p-4 w-[22%] text-left border-r border-slate-200 print:border-slate-800 print:p-2">课堂用语</th>
-                  <th className="p-4 w-[18%] text-left border-r border-slate-200 print:border-slate-800 print:p-2">难点/注意</th>
-                  <th className="p-4 w-[18%] text-left print:p-2">板书</th>
+                  <th className="p-4 w-[12%] text-center border-r border-slate-200 print-cell-border">环节</th>
+                  <th className="p-4 w-[8%] text-center border-r border-slate-200 print-cell-border">时长</th>
+                  <th className="p-4 w-[22%] text-left border-r border-slate-200 print-cell-border">教学设计</th>
+                  <th className="p-4 w-[22%] text-left border-r border-slate-200 print-cell-border">课堂用语</th>
+                  <th className="p-4 w-[18%] text-left border-r border-slate-200 print-cell-border">难点/注意</th>
+                  <th className="p-4 w-[18%] text-left">板书</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 print:divide-slate-800">
+              <tbody className="divide-y divide-slate-200 print:divide-slate-300">
                 {data.steps.map((step, i) => (
-                  <tr key={i} className={`group/step relative transition-colors ${isPreview ? '' : 'hover:bg-slate-50/30'} print:bg-white`}>
-                    <td className="p-3 align-top text-center border-r border-slate-200 relative print:border-slate-800 print:p-1">
+                  <tr key={i} className={`group/step relative transition-colors ${isPreview ? '' : 'hover:bg-slate-50/30'}`}>
+                    <td className="p-3 align-top text-center border-r border-slate-200 relative print-cell-border">
                       {!isPreview && data.steps.length > 1 && (
                         <button 
                           onClick={() => removeStep(i)}
-                          className="absolute -left-2 top-2 opacity-0 group-hover/step:opacity-100 bg-red-500 text-white p-1 rounded-full shadow-lg z-10 hover:scale-110 transition-all no-print"
-                          title="删除此环节"
+                          className="absolute -left-2 top-2 opacity-0 group-hover/step:opacity-100 bg-red-500 text-white p-1 rounded-full shadow-lg z-10 no-print"
                         >
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M20 12H4"/></svg>
                         </button>
@@ -409,26 +356,24 @@ const App: React.FC = () => {
                         className="w-full outline-none border-none resize-none font-zh text-[13px] font-bold text-slate-700 text-center bg-transparent print:text-black print:text-[11px]" 
                         value={step.step} 
                         rows={2} 
-                        onPaste={(e) => handlePaste(e, (v) => { const s = [...data.steps]; s[i].step = v; setData({ ...data, steps: s }); })}
                         onChange={e => { const s = [...data.steps]; s[i].step = e.target.value; setData({ ...data, steps: s }); }} 
-                        placeholder={isPreview ? "" : `步骤 ${i+1}`} 
+                        placeholder={isPreview ? "" : `步骤`} 
                       />
                     </td>
-                    <td className="p-3 align-top border-r border-slate-200 print:border-slate-800 print:p-1">
+                    <td className="p-3 align-top border-r border-slate-200 print-cell-border">
                       <textarea 
                         readOnly={isPreview} 
                         className="w-full outline-none border-none resize-none font-content text-sm text-center text-indigo-500 font-bold bg-transparent print:text-black print:text-[11px]" 
                         value={step.duration} 
-                        onPaste={(e) => handlePaste(e, (v) => { const s = [...data.steps]; s[i].duration = v; setData({ ...data, steps: s }); })}
                         onChange={e => { const s = [...data.steps]; s[i].duration = e.target.value; setData({ ...data, steps: s }); }} 
                         placeholder={isPreview ? "" : "Min"} 
                       />
                     </td>
                     {['design', 'instructions', 'notes', 'blackboard'].map((field, idx) => (
-                      <td key={field} className={`p-3 align-top ${idx < 3 ? 'border-r border-slate-200 print:border-slate-800' : ''} print:p-1`}>
+                      <td key={field} className={`p-3 align-top ${idx < 3 ? 'border-r border-slate-200 print-cell-border' : ''}`}>
                         <textarea 
                           readOnly={isPreview} 
-                          className="w-full outline-none border-none resize-none font-content text-sm text-slate-600 bg-transparent min-h-[140px] leading-relaxed print:text-black print:text-[10px] print:min-h-[100px] print:leading-normal" 
+                          className="w-full outline-none border-none resize-none font-content text-sm text-slate-600 bg-transparent min-h-[140px] leading-relaxed print:text-black print:text-[10px]" 
                           value={(step as any)[field]} 
                           onPaste={(e) => handlePaste(e, (v) => { const s = [...data.steps]; (s[i] as any)[field] = v; setData({ ...data, steps: s }); })}
                           onChange={e => { const s = [...data.steps]; (s[i] as any)[field] = e.target.value; setData({ ...data, steps: s }); }} 
@@ -443,82 +388,42 @@ const App: React.FC = () => {
           </div>
           {!isPreview && (
             <div className="mt-4 flex justify-center no-print">
-              <button 
-                onClick={addStep}
-                className="flex items-center gap-2 px-6 py-2 bg-white border border-slate-200 text-slate-500 rounded-xl hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50 transition-all text-sm font-bold shadow-sm"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
-                添加新的实施环节
-              </button>
+              <ActionButton onClick={addStep} label="添加新环节" variant="add" />
             </div>
           )}
         </section>
 
-        {/* 05 Connection */}
-        <section className="mb-16 relative z-10 print:mb-8">
-          <SectionTitle num="05" title="教学内容衔接" onClear={() => clearSection('connection')} />
-          <div className={`border border-slate-100 overflow-hidden bg-slate-50/30 transition-all ${isPreview ? 'rounded-none border-slate-400 bg-transparent' : 'rounded-3xl'} print:border-slate-800 print:rounded-none print:bg-white`}>
-            { [
-              { label: '本次课核心回顾', path: 'connection.review' },
-              { label: '下次课主题预告', path: 'connection.preview' },
-              { label: '预习任务布置', path: 'connection.homework' },
-              { label: '教具衔接准备', path: 'connection.prep' },
-            ].map((item, idx) => (
-              <div key={item.path} className={`flex ${idx !== 0 ? 'border-t border-slate-100' : ''} ${isPreview ? 'border-slate-400' : ''} print:border-slate-800`}>
-                <div className={`w-[180px] p-8 font-zh font-bold text-sm text-slate-400 border-r border-slate-100 flex items-center justify-center text-center ${isPreview ? 'border-slate-400' : ''} print:border-slate-800 print:text-slate-800 print:p-4 print:text-xs print:w-[120px]`}>
-                  {item.label}
-                </div>
-                <div className="flex-1">
-                  <textarea
-                    readOnly={isPreview}
-                    className={`w-full p-8 outline-none border-none resize-none font-content text-lg text-slate-800 bg-transparent placeholder-slate-200 min-h-[120px] leading-relaxed transition-colors ${isPreview ? 'cursor-default' : 'focus:bg-white/50'} print:p-4 print:text-black print:text-base print:min-h-[80px]`}
-                    value={getValueByPath(data, item.path)}
-                    onPaste={(e) => handlePaste(e, (v) => update(item.path, v))}
-                    onChange={e => update(item.path, e.target.value)}
-                    placeholder={isPreview ? "" : PLACEHOLDER}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* 06 Feedback */}
-        <section className="mb-16 page-break-before relative z-10 print:mb-8">
-          <SectionTitle num="06" title="课后沟通备忘录" onClear={() => clearSection('feedback')} />
-          <div className={`border border-slate-200 overflow-hidden shadow-sm transition-all ${isPreview ? 'rounded-none border-slate-400' : 'rounded-2xl'} print:border-slate-800 print:rounded-none`}>
+        {/* 04 Feedback */}
+        <section className="mb-16 page-break-before relative z-10 print-section">
+          <SectionTitle num="04" title="沟通备忘录" onClear={() => clearSection('feedback')} />
+          <div className={`border border-slate-200 overflow-hidden shadow-sm transition-all ${isPreview ? 'rounded-none border-slate-400' : 'rounded-2xl'} print-table-border`}>
             <table className="w-full border-collapse table-fixed">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-400 font-zh text-xs font-bold uppercase tracking-widest print:bg-slate-100 print:border-slate-800 print:text-slate-800">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-400 font-zh text-xs font-bold uppercase print:text-slate-800">
                 <tr>
-                  <th className="p-4 w-[18%] border-r border-slate-200 text-center print:border-slate-800 print:p-2">沟通对象</th>
-                  <th className="p-4 w-[32%] border-r border-slate-200 print:border-slate-800 print:p-2">具体内容</th>
-                  <th className="p-4 w-[25%] border-r border-slate-200 print:border-slate-800 print:p-2">时间</th>
-                  <th className="p-4 w-[25%] print:p-2">后续跟进</th>
+                  <th className="p-4 w-[18%] border-r border-slate-200 text-center print-cell-border">沟通对象</th>
+                  <th className="p-4 w-[82%]">沟通细节与后续跟进</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200 print:divide-slate-800">
+              <tbody className="divide-y divide-slate-200 print:divide-slate-300">
                 {[
-                  { label: '学员', sub: 'Student', p: 'student' },
-                  { label: '家长反馈', sub: 'Parent', p: 'parent' },
-                  { label: '教学搭档', sub: 'Partner', p: 'partner' },
+                  { label: '学员', p: 'student' },
+                  { label: '家长', p: 'parent' },
+                  { label: '搭档', p: 'partner' },
                 ].map(row => (
-                  <tr key={row.p} className={`${isPreview ? '' : 'hover:bg-slate-50/30'} print:bg-white`}>
-                    <td className="p-6 font-zh text-center border-r border-slate-200 bg-slate-50/10 print:border-slate-800 print:p-2 print:bg-slate-50">
-                      <div className="font-zh font-bold text-[14px] text-slate-500 leading-tight print:text-slate-800 print:text-xs">{row.label}</div>
-                      <div className="font-content text-[9px] text-slate-400 uppercase tracking-tighter mt-1 opacity-70 print:text-slate-500">{row.sub}</div>
+                  <tr key={row.p} className={`${isPreview ? '' : 'hover:bg-slate-50/30'}`}>
+                    <td className="p-6 font-zh text-center border-r border-slate-200 bg-slate-50/10 print-cell-border print:bg-slate-50">
+                      <div className="font-zh font-bold text-slate-500 print:text-slate-800">{row.label}</div>
                     </td>
-                    {['content', 'time', 'plan'].map((field, idx) => (
-                      <td key={field} className={`p-2 align-top ${idx < 2 ? 'border-r border-slate-200 print:border-slate-800' : ''} print:p-1`}>
-                        <textarea
-                          readOnly={isPreview}
-                          className="w-full p-3 outline-none border-none resize-none font-content text-base text-slate-600 bg-transparent min-h-[150px] leading-relaxed print:text-black print:text-sm print:min-h-[100px] print:p-1"
-                          value={getValueByPath(data, `feedback.${row.p}.${field}`)}
-                          onPaste={(e) => handlePaste(e, (v) => update(`feedback.${row.p}.${field}`, v))}
-                          onChange={e => update(`feedback.${row.p}.${field}`, e.target.value)}
-                          placeholder={isPreview ? "" : "..."}
-                        />
-                      </td>
-                    ))}
+                    <td className="p-2">
+                      <textarea
+                        readOnly={isPreview}
+                        className="w-full p-3 outline-none border-none resize-none font-content text-base text-slate-600 bg-transparent min-h-[120px] leading-relaxed print:text-black print:text-sm"
+                        value={getValueByPath(data, `feedback.${row.p}.content`)}
+                        onPaste={(e) => handlePaste(e, (v) => update(`feedback.${row.p}.content`, v))}
+                        onChange={e => update(`feedback.${row.p}.content`, e.target.value)}
+                        placeholder="..."
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -527,34 +432,70 @@ const App: React.FC = () => {
         </section>
 
         {/* Footer */}
-        <div className="mt-24 pt-10 border-t border-slate-100 text-center relative z-10 print:mt-12 print:pt-4 print:border-slate-800">
-          <p className="text-slate-400 font-content text-[10px] tracking-[0.1em] uppercase font-bold text-center print:text-slate-500 print:text-[8px]">CAMPUPRO ENGLISH Training & Development Department</p>
-          <p className="text-slate-300 font-content text-[8px] tracking-[0.4em] uppercase mt-1 print:hidden">Private & Confidential • Professional English Teaching Plan</p>
+        <div className="mt-24 pt-10 border-t border-slate-100 text-center relative z-10 print-footer">
+          <p className="text-slate-400 font-content text-[10px] tracking-[0.1em] uppercase font-bold text-center print:text-slate-500">CAMPUPRO ENGLISH Training & Development Department</p>
         </div>
       </div>
 
       <style>{`
+        /* Print Styles Optimized for Consistency with UI */
         @media print {
           .no-print { display: none !important; }
-          body { background: white; margin: 0; padding: 0; }
-          .paper { 
-            border: none; 
+          body { 
+            background: white !important; 
+            margin: 0 !important; 
+            padding: 0 !important; 
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .print-paper { 
+            border: none !important; 
             box-shadow: none !important; 
             width: 100% !important; 
             max-width: none !important; 
             margin: 0 !important; 
-            padding: 10mm !important; 
+            padding: 15mm !important; 
             border-radius: 0 !important;
             transform: none !important;
           }
           .page-break-before { page-break-before: always; }
-          input, textarea { background: transparent !important; color: black !important; border-radius: 0 !important; }
           @page { margin: 10mm; size: A4; }
-          textarea::placeholder { color: transparent !important; }
           
-          .border-slate-200 { border-color: #333 !important; }
-          .border-slate-100 { border-color: #333 !important; }
-          .border-slate-400 { border-color: #333 !important; }
+          input, textarea { background: transparent !important; color: black !important; border: none !important; }
+          textarea::placeholder { color: transparent !important; }
+
+          /* Preserve specific elements UI styling */
+          .print-indigo-bar { 
+            background-color: #6366f1 !important; 
+            display: block !important;
+          }
+          .print-indigo-text { 
+            color: #6366f1 !important; 
+            opacity: 1 !important;
+          }
+          .section-divider { 
+            background-color: #e2e8f0 !important; 
+            display: block !important;
+          }
+          .print-grid-border {
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 8px !important;
+          }
+          .print-cell-border {
+            border-right: 1px solid #e2e8f0 !important;
+            border-bottom: 1px solid #e2e8f0 !important;
+          }
+          .print-table-border {
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 8px !important;
+          }
+          .print-line-border {
+            border-bottom: 1px solid #f1f5f9 !important;
+          }
+          .print-footer {
+            border-top: 1px solid #f1f5f9 !important;
+            margin-top: 20mm !important;
+          }
         }
         
         .font-zh { font-family: "Microsoft YaHei", sans-serif; }
