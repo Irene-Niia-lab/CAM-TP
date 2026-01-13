@@ -15,7 +15,7 @@ const INITIAL_STATE: TeachingPlan = {
   materials: { cards: '', realia: '', multimedia: '', rewards: '' },
   games: [{ name: '', goal: '', prep: '', rules: '' }],
   steps: Array(5).fill(null).map((_, i) => ({
-    step: `${i + 1}. `, duration: '', design: '', instructions: '', notes: '', blackboard: ''
+    step: `Step ${i + 1}`, duration: '', design: '', instructions: '', notes: '', blackboard: ''
   })),
   connection: { review: '', preview: '', homework: '', prep: '' },
   feedback: {
@@ -27,7 +27,6 @@ const INITIAL_STATE: TeachingPlan = {
 
 // --- 子组件定义 ---
 
-// 自动调整高度的文本框组件，用于表格内部
 const AutoResizingTextarea = memo(({ value, onChange, isPreview, className, placeholder = "" }: { 
   value: string, 
   onChange: (v: string) => void, 
@@ -116,7 +115,7 @@ const EditableLine = memo(({ label, value, onChange, isPreview, placeholder = "�
 
 const App: React.FC = () => {
   const [data, setData] = useState<TeachingPlan>(() => {
-    const saved = localStorage.getItem('teaching-plan-v10');
+    const saved = localStorage.getItem('teaching-plan-v11');
     return saved ? JSON.parse(saved) : INITIAL_STATE;
   });
   
@@ -125,7 +124,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    localStorage.setItem('teaching-plan-v10', JSON.stringify(data));
+    localStorage.setItem('teaching-plan-v11', JSON.stringify(data));
     const { level, unit, lessonNo } = data.basic;
     const formatPart = (val: string, prefix: string) => {
       const clean = (val || '').trim();
@@ -162,12 +161,6 @@ const App: React.FC = () => {
         return await ai.models.generateContent(parameters);
       } catch (error: any) {
         lastError = error;
-        console.warn(`AI request attempt ${i + 1} failed:`, error);
-        
-        if (error.message?.includes("Requested entity was not found")) {
-            throw error; 
-        }
-
         const delay = Math.pow(2, i) * 1000;
         await new Promise(resolve => setTimeout(resolve, delay));
       }
@@ -184,14 +177,11 @@ const App: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       let contentPart: any;
 
-      // Handle Word documents (.docx or .doc)
-      // Note: .doc (old format) is harder to parse in browser, but mammoth handles .docx
       if (file.name.toLowerCase().endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
         contentPart = { text: `以下是教案文档的内容，请根据此内容提取信息：\n\n${result.value}` };
       } 
-      // Handle PDF or Images
       else {
         const base64 = await new Promise<string>((resolve) => {
           const reader = new FileReader();
@@ -206,7 +196,7 @@ const App: React.FC = () => {
         contents: [
           {
             parts: [
-              { text: "你是一个高精度的教案数据提取专家。请从提供的文档内容或图片中，将对应位置的内容【原封不动】地提取出来并按指定的JSON格式返回。要求：1. 严禁对原始内容进行任何润色、优化、改写、删减或归纳。2. 必须完整保留原文的所有文字描述、标点符号。3. 如果某个字段在原文中存在，必须完整保留其每一个字符。4. 如果某项内容确实缺失，请保持空字符串。5. 严格遵守JSON Schema。" },
+              { text: "你是一个高精度的教案数据提取专家。请从提供的文档内容或图片中，将对应位置的内容【原封不动】地提取出来并按指定的JSON格式返回。要求：1. 严禁对原始内容进行任何润色、优化、改写、删减或归纳。2. 必须完整保留原文的所有文字描述、标点符号。3. 如果某个字段在原文中存在，必须完整保留其每一个字符。4. 特别注意：在提取'steps'（教学环节）时，请将环节的名称提取到'step'字段中，如果原文档中有编号（如1, 2, 第一步等），也请一并保留在'step'字符串内。5. 严格遵守JSON Schema。" },
               contentPart
             ]
           }
@@ -288,30 +278,21 @@ const App: React.FC = () => {
       });
 
       const textOutput = response.text;
-      if (!textOutput) {
-        throw new Error("AI returned empty content.");
-      }
+      if (!textOutput) throw new Error("AI returned empty content.");
 
       const extractedData = JSON.parse(textOutput);
       
-      // Ensure steps have at least 5 elements for initial template look, but respect extracted content
       if (extractedData.steps && extractedData.steps.length < 5) {
         const currentCount = extractedData.steps.length;
         for (let i = currentCount; i < 5; i++) {
-          extractedData.steps.push({ step: `${i + 1}. `, duration: '', design: '', instructions: '', notes: '', blackboard: '' });
+          extractedData.steps.push({ step: `Step ${i + 1}`, duration: '', design: '', instructions: '', notes: '', blackboard: '' });
         }
       }
       
       setData({ ...INITIAL_STATE, ...extractedData });
     } catch (error: any) {
       console.error("Extraction failed:", error);
-      let errorMessage = "信息提取失败，请检查文件格式是否正确或稍后重试。";
-      if (error.message?.includes("Rpc failed") || error.message?.includes("xhr error")) {
-        errorMessage = "服务器响应失败 (Rpc Error)。请检查网络连接，或稍后再试。";
-      } else if (error.message?.includes("Requested entity was not found")) {
-        errorMessage = "请求的模型暂时无法访问，请稍后再试。";
-      }
-      alert(`${errorMessage}\n\n错误详情: ${error.message || 'Unknown error'}`);
+      alert(`信息提取失败。错误详情: ${error.message || 'Unknown error'}`);
     } finally {
       setIsProcessing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -332,7 +313,7 @@ const App: React.FC = () => {
       ...prev,
       steps: [
         ...prev.steps,
-        { step: `${prev.steps.length + 1}. `, duration: '', design: '', instructions: '', notes: '', blackboard: '' }
+        { step: `Step ${prev.steps.length + 1}`, duration: '', design: '', instructions: '', notes: '', blackboard: '' }
       ]
     }));
   };
@@ -448,7 +429,7 @@ const App: React.FC = () => {
               <h3 className="text-xs font-bold font-zh text-indigo-400 mb-3 uppercase tracking-wider opacity-80">（二）句型目标 / Sentences</h3>
               <Clarify text="核心/基础/卫星句型" />
               <EditableLine label="核心句型" value={data.objectives.patterns.core} onChange={v => updateByPath('objectives.patterns.core', v)} isPreview={isPreview} />
-              <EditableLine label="基础句型" value={data.objectives.patterns.basic} onChange={e => updateByPath('objectives.patterns.basic', e)} isPreview={isPreview} />
+              <EditableLine label="基础句型" value={data.objectives.patterns.basic} onChange={v => updateByPath('objectives.patterns.basic', v)} isPreview={isPreview} />
               <EditableLine label="卫星句型" value={data.objectives.patterns.satellite} onChange={v => updateByPath('objectives.patterns.satellite', v)} isPreview={isPreview} />
             </div>
             <div>
@@ -541,13 +522,16 @@ const App: React.FC = () => {
                           ✕
                         </button>
                       )}
-                      <AutoResizingTextarea 
-                        value={step.step} 
-                        onChange={v => { const s = [...data.steps]; s[i].step = v; updateByPath('steps', s); }}
-                        isPreview={isPreview}
-                        className="font-zh text-[11px] font-bold text-slate-700 text-center"
-                        placeholder="Step"
-                      />
+                      <div className="flex flex-col items-center">
+                        <span className="text-[12px] font-bold text-indigo-400/40 mb-1 select-none font-content">{i + 1}.</span>
+                        <AutoResizingTextarea 
+                          value={step.step} 
+                          onChange={v => { const s = [...data.steps]; s[i].step = v; updateByPath('steps', s); }}
+                          isPreview={isPreview}
+                          className="font-zh text-[11px] font-bold text-slate-700 text-center"
+                          placeholder="环节名称"
+                        />
+                      </div>
                     </td>
                     <td className="p-2 border-r border-slate-200">
                       <AutoResizingTextarea 
