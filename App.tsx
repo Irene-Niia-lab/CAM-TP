@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import { TeachingPlan, Game, ImplementationStep } from './types';
+import * as mammoth from 'mammoth';
 
 // --- 初始状态定义 ---
 const INITIAL_STATE: TeachingPlan = {
@@ -163,13 +164,10 @@ const App: React.FC = () => {
         lastError = error;
         console.warn(`AI request attempt ${i + 1} failed:`, error);
         
-        // If it's a "Requested entity was not found" error, we might need to handle it specifically
-        // though this is gemini-3-flash-preview.
         if (error.message?.includes("Requested entity was not found")) {
-            throw error; // Rethrow as it might be a model availability issue
+            throw error; 
         }
 
-        // Exponential backoff
         const delay = Math.pow(2, i) * 1000;
         await new Promise(resolve => setTimeout(resolve, delay));
       }
@@ -183,20 +181,33 @@ const App: React.FC = () => {
 
     setIsProcessing(true);
     try {
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(',')[1]);
-        reader.readAsDataURL(file);
-      });
-
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      let contentPart: any;
+
+      // Handle Word documents (.docx or .doc)
+      // Note: .doc (old format) is harder to parse in browser, but mammoth handles .docx
+      if (file.name.toLowerCase().endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        contentPart = { text: `以下是教案文档的内容，请根据此内容提取信息：\n\n${result.value}` };
+      } 
+      // Handle PDF or Images
+      else {
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(',')[1]);
+          reader.readAsDataURL(file);
+        });
+        contentPart = { inlineData: { mimeType: file.type, data: base64 } };
+      }
+
       const response = await fetchWithRetry(ai, {
         model: "gemini-3-flash-preview",
         contents: [
           {
             parts: [
-              { text: "你是一个高精度的教案数据提取专家。请从上传的图片或文档中，将对应位置的内容【原封不动】地提取出来并按指定的JSON格式返回。要求：1. 严禁对原始内容进行任何润色、优化、改写、删减或归纳。2. 必须完整保留原文的所有文字描述、标点符号。3. 如果某个字段在原文中存在，必须完整保留其每一个字符。4. 如果某项内容确实缺失，请保持空字符串。5. 严格遵守JSON Schema。" },
-              { inlineData: { mimeType: file.type, data: base64 } }
+              { text: "你是一个高精度的教案数据提取专家。请从提供的文档内容或图片中，将对应位置的内容【原封不动】地提取出来并按指定的JSON格式返回。要求：1. 严禁对原始内容进行任何润色、优化、改写、删减或归纳。2. 必须完整保留原文的所有文字描述、标点符号。3. 如果某个字段在原文中存在，必须完整保留其每一个字符。4. 如果某项内容确实缺失，请保持空字符串。5. 严格遵守JSON Schema。" },
+              contentPart
             ]
           }
         ],
@@ -282,15 +293,19 @@ const App: React.FC = () => {
       }
 
       const extractedData = JSON.parse(textOutput);
+      
+      // Ensure steps have at least 5 elements for initial template look, but respect extracted content
       if (extractedData.steps && extractedData.steps.length < 5) {
-        while (extractedData.steps.length < 5) {
-          extractedData.steps.push({ step: `${extractedData.steps.length + 1}. `, duration: '', design: '', instructions: '', notes: '', blackboard: '' });
+        const currentCount = extractedData.steps.length;
+        for (let i = currentCount; i < 5; i++) {
+          extractedData.steps.push({ step: `${i + 1}. `, duration: '', design: '', instructions: '', notes: '', blackboard: '' });
         }
       }
+      
       setData({ ...INITIAL_STATE, ...extractedData });
     } catch (error: any) {
       console.error("Extraction failed:", error);
-      let errorMessage = "信息提取失败，可能是由于网络连接不稳定（Rpc/500）导致的。";
+      let errorMessage = "信息提取失败，请检查文件格式是否正确或稍后重试。";
       if (error.message?.includes("Rpc failed") || error.message?.includes("xhr error")) {
         errorMessage = "服务器响应失败 (Rpc Error)。请检查网络连接，或稍后再试。";
       } else if (error.message?.includes("Requested entity was not found")) {
@@ -348,7 +363,7 @@ const App: React.FC = () => {
           ref={fileInputRef} 
           onChange={handleFileUpload} 
           className="hidden" 
-          accept="image/*,application/pdf"
+          accept="image/*,application/pdf,.doc,.docx"
         />
         
         <button 
@@ -433,7 +448,7 @@ const App: React.FC = () => {
               <h3 className="text-xs font-bold font-zh text-indigo-400 mb-3 uppercase tracking-wider opacity-80">（二）句型目标 / Sentences</h3>
               <Clarify text="核心/基础/卫星句型" />
               <EditableLine label="核心句型" value={data.objectives.patterns.core} onChange={v => updateByPath('objectives.patterns.core', v)} isPreview={isPreview} />
-              <EditableLine label="基础句型" value={data.objectives.patterns.basic} onChange={v => updateByPath('objectives.patterns.basic', v)} isPreview={isPreview} />
+              <EditableLine label="基础句型" value={data.objectives.patterns.basic} onChange={e => updateByPath('objectives.patterns.basic', e)} isPreview={isPreview} />
               <EditableLine label="卫星句型" value={data.objectives.patterns.satellite} onChange={v => updateByPath('objectives.patterns.satellite', v)} isPreview={isPreview} />
             </div>
             <div>
