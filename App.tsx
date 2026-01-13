@@ -15,7 +15,7 @@ const INITIAL_STATE: TeachingPlan = {
   materials: { cards: '', realia: '', multimedia: '', rewards: '' },
   games: [{ name: '', goal: '', prep: '', rules: '' }],
   steps: Array(5).fill(null).map((_, i) => ({
-    step: `Step ${i + 1}`, duration: '', design: '', instructions: '', notes: '', blackboard: ''
+    step: '', duration: '', design: '', instructions: '', notes: '', blackboard: ''
   })),
   connection: { review: '', preview: '', homework: '', prep: '' },
   feedback: {
@@ -285,7 +285,7 @@ const App: React.FC = () => {
       if (extractedData.steps && extractedData.steps.length < 5) {
         const currentCount = extractedData.steps.length;
         for (let i = currentCount; i < 5; i++) {
-          extractedData.steps.push({ step: `Step ${i + 1}`, duration: '', design: '', instructions: '', notes: '', blackboard: '' });
+          extractedData.steps.push({ step: '', duration: '', design: '', instructions: '', notes: '', blackboard: '' });
         }
       }
       
@@ -313,7 +313,7 @@ const App: React.FC = () => {
       ...prev,
       steps: [
         ...prev.steps,
-        { step: `Step ${prev.steps.length + 1}`, duration: '', design: '', instructions: '', notes: '', blackboard: '' }
+        { step: '', duration: '', design: '', instructions: '', notes: '', blackboard: '' }
       ]
     }));
   };
