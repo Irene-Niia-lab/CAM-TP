@@ -1,7 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { TeachingPlan, Game, ImplementationStep } from './types';
 
+// --- 初始状态定义 ---
 const INITIAL_STATE: TeachingPlan = {
   basic: { level: '', unit: '', lessonNo: '', duration: '', className: '', studentCount: '', date: '' },
   objectives: {
@@ -10,16 +11,9 @@ const INITIAL_STATE: TeachingPlan = {
     expansion: { culture: '', daily: '', habits: '' },
   },
   materials: { cards: '', realia: '', multimedia: '', rewards: '' },
-  games: [ 
-    { name: '', goal: '', prep: '', rules: '' }
-  ],
-  steps: Array(5).fill(null).map((_, i) => ({
-    step: '',
-    duration: '',
-    design: '',
-    instructions: '',
-    notes: '',
-    blackboard: ''
+  games: [{ name: '', goal: '', prep: '', rules: '' }],
+  steps: Array(5).fill(null).map(() => ({
+    step: '', duration: '', design: '', instructions: '', notes: '', blackboard: ''
   })),
   connection: { review: '', preview: '', homework: '', prep: '' },
   feedback: {
@@ -29,341 +23,232 @@ const INITIAL_STATE: TeachingPlan = {
   },
 };
 
+// --- 子组件定义（外部化以防止重复挂载导致的输入法断开） ---
+
+const SectionTitle = memo(({ num, title, onClear, isPreview }: { num: string, title: string, onClear?: () => void, isPreview: boolean }) => (
+  <div className="flex items-center mb-8 mt-4 group/title">
+    <div className="w-1.5 h-8 bg-indigo-500 rounded-full mr-4"></div>
+    <div className="flex items-baseline">
+      <span className="text-indigo-500 font-bold text-2xl mr-2 opacity-50">{num}.</span>
+      <h2 className="text-xl font-bold font-zh text-slate-800 tracking-wide">{title}</h2>
+    </div>
+    {!isPreview && onClear && (
+      <button 
+        onClick={onClear}
+        className="ml-4 opacity-0 group-hover/title:opacity-100 transition-opacity text-slate-400 hover:text-red-500 flex items-center gap-1 text-xs font-bold font-zh no-print"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        清空
+      </button>
+    )}
+    <div className="flex-1 ml-6 h-[1px] bg-slate-100"></div>
+  </div>
+));
+
+const EditableLine = memo(({ label, value, onChange, isPreview, placeholder = "点击填写..." }: { label: string, value: string, onChange: (v: string) => void, isPreview: boolean, placeholder?: string }) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const el = e.target;
+    onChange(el.value);
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  };
+
+  return (
+    <div className={`group flex items-start py-3 border-b border-slate-50 transition-all ${isPreview ? 'border-transparent' : 'hover:border-indigo-100'}`}>
+      <div className="flex-shrink-0 font-bold text-[13px] font-zh min-w-[160px] text-slate-500 pt-1.5 uppercase tracking-tighter">
+        {label}
+      </div>
+      <div className="flex-1 ml-4">
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          readOnly={isPreview}
+          className={`w-full outline-none border-none resize-none font-content text-lg text-slate-900 bg-transparent placeholder-slate-200 focus:text-indigo-900 overflow-hidden leading-relaxed ${isPreview ? 'cursor-default' : ''}`}
+          value={value}
+          onChange={handleChange}
+          placeholder={isPreview ? "" : placeholder}
+        />
+      </div>
+    </div>
+  );
+});
+
 const App: React.FC = () => {
   const [data, setData] = useState<TeachingPlan>(() => {
-    const saved = localStorage.getItem('teaching-plan-v5');
+    const saved = localStorage.getItem('teaching-plan-v10');
     return saved ? JSON.parse(saved) : INITIAL_STATE;
   });
   
   const [isPreview, setIsPreview] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('teaching-plan-v5', JSON.stringify(data));
+    localStorage.setItem('teaching-plan-v10', JSON.stringify(data));
     const { level, unit, lessonNo } = data.basic;
-
-    // 格式化函数：严格检测并避免重复添加前缀 (PU, U, L)
     const formatPart = (val: string, prefix: string) => {
       const clean = (val || '').trim();
       if (!clean) return '';
-      // 如果用户输入的开头已经是该前缀（不区分大小写），则直接返回原值
-      if (clean.toUpperCase().startsWith(prefix.toUpperCase())) {
-        return clean;
-      }
+      if (clean.toUpperCase().startsWith(prefix.toUpperCase())) return clean;
       return `${prefix}${clean}`;
     };
-
     const pLevel = formatPart(level, 'PU');
     const pUnit = formatPart(unit, 'U');
     const pLesson = formatPart(lessonNo, 'L');
-
-    // 最终导出文件名格式：02.PU1 U7L1 Teaching Plan
     const fileName = `02.${pLevel} ${pUnit}${pLesson} Teaching Plan`.replace(/\s+/g, ' ').trim();
     document.title = fileName;
   }, [data]);
 
-  const update = (path: string, value: any) => {
-    const keys = path.split('.');
+  const updateByPath = (path: string, value: any) => {
     setData(prev => {
-      const next = JSON.parse(JSON.stringify(prev));
+      const keys = path.split('.');
+      const next = { ...prev };
       let current: any = next;
       for (let i = 0; i < keys.length - 1; i++) {
-        current = current[keys[i]];
+        const key = keys[i];
+        current[key] = Array.isArray(current[key]) ? [...current[key]] : { ...current[key] };
+        current = current[key];
       }
       current[keys[keys.length - 1]] = value;
       return next;
     });
   };
 
-  const handlePaste = (
-    e: React.ClipboardEvent<HTMLTextAreaElement | HTMLInputElement>, 
-    callback: (v: string) => void
-  ) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text/plain');
-    const target = e.currentTarget;
-    const start = target.selectionStart || 0;
-    const end = target.selectionEnd || 0;
-    const currentVal = target.value;
-    const newValue = currentVal.substring(0, start) + text + currentVal.substring(end);
-    callback(newValue);
-
-    if (target instanceof HTMLTextAreaElement) {
-        setTimeout(() => {
-            target.style.height = 'auto';
-            target.style.height = target.scrollHeight + 'px';
-        }, 0);
-    }
-  };
-
-  const clearSection = (section: keyof TeachingPlan) => {
-    if (confirm(`确定要清空该模块的内容吗？`)) {
-      setData(prev => ({
-        ...prev,
-        [section]: INITIAL_STATE[section]
-      }));
-    }
-  };
-
   const addGame = () => {
-    const newGame: Game = { name: '', goal: '', prep: '', rules: '' };
-    setData(prev => ({ ...prev, games: [...prev.games, newGame] }));
+    setData(prev => ({ ...prev, games: [...prev.games, { name: '', goal: '', prep: '', rules: '' }] }));
   };
 
   const removeGame = (index: number) => {
     if (data.games.length <= 1) return;
-    setData(prev => ({
-      ...prev,
-      games: prev.games.filter((_, i) => i !== index)
-    }));
+    setData(prev => ({ ...prev, games: prev.games.filter((_, i) => i !== index) }));
   };
-
-  const addStep = () => {
-    const newStep: ImplementationStep = {
-      step: '', duration: '', design: '', instructions: '', notes: '', blackboard: ''
-    };
-    setData(prev => ({ ...prev, steps: [...prev.steps, newStep] }));
-  };
-
-  const removeStep = (index: number) => {
-    if (data.steps.length <= 1) return;
-    setData(prev => ({
-      ...prev,
-      steps: prev.steps.filter((_, i) => i !== index)
-    }));
-  };
-
-  const getValueByPath = (obj: any, path: string) => {
-    try {
-      return path.split('.').reduce((o, i) => (o ? o[i] : ''), obj) || '';
-    } catch (e) {
-      return '';
-    }
-  };
-
-  const handlePrint = () => window.print();
-
-  const PLACEHOLDER = "点击填写内容...";
-
-  const SectionTitle = ({ num, title, onClear }: { num: string, title: string, onClear?: () => void }) => (
-    <div className="flex items-center mb-8 mt-4 group/title">
-      <div className="w-1.5 h-8 bg-indigo-500 rounded-full mr-4"></div>
-      <div className="flex items-baseline">
-        <span className="text-indigo-500 font-bold text-2xl mr-2 opacity-50">{num}.</span>
-        <h2 className="text-xl font-bold font-zh text-slate-800 tracking-wide">{title}</h2>
-      </div>
-      {!isPreview && onClear && (
-        <button 
-          onClick={onClear}
-          className="ml-4 opacity-0 group-hover/title:opacity-100 transition-opacity text-slate-400 hover:text-red-500 flex items-center gap-1 text-xs font-bold font-zh no-print"
-          title="清空此模块"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-          清空模块
-        </button>
-      )}
-      <div className="flex-1 ml-6 h-[1px] bg-slate-100"></div>
-    </div>
-  );
-
-  const EditableLine = ({ label, value, onChange, prefix }: { label: string, value: string, onChange: (v: string) => void, prefix?: string }) => (
-    <div className={`group flex items-start py-3 border-b border-slate-50 transition-all ${isPreview ? 'border-transparent' : 'hover:border-indigo-100'}`}>
-      <div className="flex-shrink-0 font-bold text-[15px] font-zh min-w-[140px] text-slate-600 pt-1">
-        {prefix && <span className="mr-2 text-indigo-400 font-normal no-print">{prefix}</span>}
-        {label}
-      </div>
-      <div className="flex-1 ml-4">
-        <textarea
-          rows={1}
-          readOnly={isPreview}
-          className={`w-full outline-none border-none resize-none font-content text-lg text-slate-900 bg-transparent placeholder-slate-200 focus:text-indigo-900 overflow-hidden leading-relaxed ${isPreview ? 'cursor-default' : ''}`}
-          value={value}
-          onPaste={(e) => handlePaste(e, onChange)}
-          onChange={e => {
-            onChange(e.target.value);
-            e.target.style.height = 'auto';
-            e.target.style.height = e.target.scrollHeight + 'px';
-          }}
-          placeholder={isPreview ? "" : PLACEHOLDER}
-        />
-      </div>
-    </div>
-  );
-
-  const ActionButton = ({ onClick, label, variant }: { onClick: () => void, label: string, variant: 'add' | 'remove' }) => (
-    <button
-      onClick={onClick}
-      className={`no-print flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-        variant === 'add' 
-          ? 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100' 
-          : 'bg-red-50 text-red-500 hover:bg-red-100'
-      }`}
-    >
-      {variant === 'add' ? (
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
-      ) : (
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M20 12H4"/></svg>
-      )}
-      {label}
-    </button>
-  );
 
   return (
     <div className={`min-h-screen transition-colors duration-500 py-12 px-4 print:p-0 print:bg-white ${isPreview ? 'bg-slate-800' : 'bg-slate-50'}`}>
       
-      {/* Top Exit Preview Bar */}
-      {isPreview && (
-        <div className="no-print fixed top-0 left-0 w-full flex justify-center py-4 bg-slate-900/50 backdrop-blur-md z-[60] animate-in fade-in slide-in-from-top-4">
-          <button 
-            onClick={() => setIsPreview(false)}
-            className="bg-white text-slate-900 px-6 py-2 rounded-full font-bold text-sm shadow-2xl hover:bg-indigo-50 transition-all flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            退出预览模式
-          </button>
-        </div>
-      )}
-
-      {/* Floating Control Panel */}
+      {/* Controls */}
       <div className={`no-print fixed top-8 right-8 flex flex-col gap-4 z-50 transition-all duration-300 ${isPreview ? 'opacity-0 pointer-events-none translate-x-10' : 'opacity-100'}`}>
-        <button 
-          onClick={handlePrint} 
-          className="bg-slate-900 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl shadow-xl hover:scale-105 transition-all font-bold text-base flex items-center gap-3"
-        >
+        <button onClick={() => window.print()} className="bg-slate-900 hover:bg-indigo-600 text-white px-8 py-4 rounded-2xl shadow-xl hover:scale-105 transition-all font-bold text-base flex items-center gap-3">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
           导出正式教案
         </button>
-        
-        <button 
-          onClick={() => setIsPreview(true)}
-          className="bg-white border border-slate-200 text-slate-700 px-8 py-4 rounded-2xl shadow-md hover:border-indigo-200 hover:text-indigo-600 transition-all font-bold text-base flex items-center gap-3"
-        >
+        <button onClick={() => setIsPreview(true)} className="bg-white border border-slate-200 text-slate-700 px-8 py-4 rounded-2xl shadow-md hover:border-indigo-200 hover:text-indigo-600 transition-all font-bold text-base flex items-center gap-3">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-          预览打印效果
+          预览打印模式
         </button>
-
-        <button 
-          onClick={() => { if(confirm('确定要清空所有已填写的内容吗？')) setData(INITIAL_STATE); }} 
-          className="bg-white/80 backdrop-blur border border-slate-200 text-slate-400 px-8 py-3 rounded-2xl hover:text-red-500 hover:border-red-100 transition-all text-sm font-medium"
-        >
+        <button onClick={() => { if(confirm('清空全部内容？')) setData(INITIAL_STATE); }} className="bg-white/80 backdrop-blur border border-slate-200 text-slate-400 px-8 py-3 rounded-2xl hover:text-red-500 transition-all text-sm font-medium">
           清空全部
         </button>
       </div>
 
+      {isPreview && (
+        <div className="no-print fixed top-0 left-0 w-full flex justify-center py-4 bg-slate-900/50 backdrop-blur-md z-[60]">
+          <button onClick={() => setIsPreview(false)} className="bg-white text-slate-900 px-6 py-2 rounded-full font-bold text-sm shadow-2xl flex items-center gap-2">
+            退出预览
+          </button>
+        </div>
+      )}
+
       <div className={`paper mx-auto bg-white transition-all duration-500 relative ${isPreview ? 'p-[20mm] rounded-none shadow-2xl scale-[0.98]' : 'p-[25mm] rounded-3xl shadow-[0_10px_40px_rgba(0,0,0,0.03)]'}`} style={{ maxWidth: '210mm' }}>
         
-        {/* Background Watermark - 仅在网页显示，导出PDF时由于 no-print 会被隐藏 */}
-        <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.03] overflow-hidden select-none z-0 text-center no-print">
-          <span className="text-[60px] font-bold font-content -rotate-45 whitespace-nowrap">CAMPUPRO ENGLISH<br/>Training & Development Department</span>
-        </div>
-
         {/* Header */}
-        <div className="text-center mb-20 relative z-10">
+        <div className="text-center mb-16 relative z-10">
           <h1 className="text-4xl font-bold font-zh text-slate-900 tracking-[0.15em]">少儿英语线下课课堂教案</h1>
           <div className="mt-4 flex flex-col items-center justify-center gap-2">
-            <div className="flex items-center gap-4">
-              <span className="h-[1px] w-12 bg-indigo-100"></span>
-              <p className="text-indigo-400 font-content text-xs tracking-[0.1em] uppercase font-bold text-center">CAMPUPRO ENGLISH Training & Development Department</p>
-              <span className="h-[1px] w-12 bg-indigo-100"></span>
-            </div>
-            <p className="text-slate-300 font-content text-[9px] tracking-[0.4em] uppercase font-medium print:hidden">Teaching Plan Template</p>
+            <p className="text-indigo-400 font-content text-xs tracking-[0.1em] uppercase font-bold">CAMPUPRO ENGLISH Training & Development Department</p>
           </div>
         </div>
 
         {/* 01 Basic Info */}
-        <section className="mb-16 relative z-10">
-          <SectionTitle num="01" title="基础课程信息" onClear={() => clearSection('basic')} />
-          <div className={`grid grid-cols-2 border border-slate-200 rounded-2xl overflow-hidden transition-all ${isPreview ? 'rounded-none border-slate-400' : ''}`}>
+        <section className="mb-12 relative z-10">
+          <SectionTitle num="01" title="基础课程信息" onClear={() => updateByPath('basic', INITIAL_STATE.basic)} isPreview={isPreview} />
+          <div className={`grid grid-cols-2 border border-slate-200 rounded-2xl overflow-hidden ${isPreview ? 'rounded-none border-slate-400' : ''}`}>
             {[
-              { label: '课程级别', path: 'basic.level', placeholder: '如: 1' },
-              { label: '单元', path: 'basic.unit', placeholder: '如: 7' },
-              { label: '课号', path: 'basic.lessonNo', placeholder: '如: 1' },
-              { label: '课程时长', path: 'basic.duration', placeholder: 'Min' },
-              { label: '授课班级', path: 'basic.className', placeholder: '班级名称' },
-              { label: '学员人数', path: 'basic.studentCount', placeholder: '人数' },
-              { label: '授课日期', path: 'basic.date', placeholder: 'YYYY-MM-DD' },
+              { label: '课程级别', path: 'basic.level' },
+              { label: '单元', path: 'basic.unit' },
+              { label: '课号', path: 'basic.lessonNo' },
+              { label: '时长', path: 'basic.duration' },
+              { label: '授课班级', path: 'basic.className' },
+              { label: '人数', path: 'basic.studentCount' },
+              { label: '日期', path: 'basic.date' },
             ].map((item, idx) => (
               <div key={item.path} className={`flex border-slate-100 ${idx % 2 === 0 ? 'border-r' : ''} ${idx < 6 ? 'border-b' : ''} ${idx === 6 ? 'col-span-2' : ''} ${isPreview ? 'border-slate-400' : ''}`}>
-                <div className={`w-[110px] bg-slate-50/50 p-4 font-zh font-bold text-sm text-slate-500 flex items-center justify-center text-center ${isPreview ? 'bg-transparent border-r border-slate-400' : ''}`}>
+                <div className="w-[100px] bg-slate-50/50 p-4 font-zh font-bold text-xs text-slate-400 flex items-center justify-center text-center uppercase">
                   {item.label}
                 </div>
                 <div className="flex-1 p-3">
-                  <input 
-                    readOnly={isPreview}
-                    className="w-full outline-none border-none font-content text-center text-lg text-slate-800 placeholder-slate-200 bg-transparent" 
-                    value={getValueByPath(data, item.path)} 
-                    onPaste={(e) => handlePaste(e, (v) => update(item.path, v))}
-                    onChange={e => update(item.path, e.target.value)} 
-                    placeholder={isPreview ? "" : item.placeholder} 
-                  />
+                  <input readOnly={isPreview} className="w-full outline-none border-none font-content text-center text-lg text-slate-800 bg-transparent" value={(data.basic as any)[item.path.split('.')[1]]} onChange={e => updateByPath(item.path, e.target.value)} />
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* 02 Teaching Objectives */}
-        <section className="mb-16 relative z-10">
-          <SectionTitle num="02" title="核心教学目标" onClear={() => clearSection('objectives')} />
-          <div className="flex flex-col space-y-12">
+        {/* 02 Objectives */}
+        <section className="mb-12 relative z-10">
+          <SectionTitle num="02" title="核心教学目标" onClear={() => updateByPath('objectives', INITIAL_STATE.objectives)} isPreview={isPreview} />
+          <div className="flex flex-col space-y-10">
             <div>
-              <h3 className="text-sm font-bold font-zh text-indigo-500 mb-4 uppercase tracking-widest">（一）词汇目标 / Vocabulary</h3>
-              <EditableLine label="核心单词 (四会)" value={data.objectives.vocab.core} onChange={v => update('objectives.vocab.core', v)} />
-              <EditableLine label="基础单词 (三会)" value={data.objectives.vocab.basic} onChange={v => update('objectives.vocab.basic', v)} />
-              <EditableLine label="卫星单词 (二会)" value={data.objectives.vocab.satellite} onChange={v => update('objectives.vocab.satellite', v)} />
+              <h3 className="text-[11px] font-bold font-zh text-indigo-400 mb-4 uppercase tracking-[0.2em] opacity-80">（一）词汇目标 / Vocabulary</h3>
+              <EditableLine label="核心单词 (4 skills)" value={data.objectives.vocab.core} onChange={v => updateByPath('objectives.vocab.core', v)} isPreview={isPreview} />
+              <EditableLine label="基础单词 (3 skills)" value={data.objectives.vocab.basic} onChange={v => updateByPath('objectives.vocab.basic', v)} isPreview={isPreview} />
+              <EditableLine label="卫星单词 (2 skills)" value={data.objectives.vocab.satellite} onChange={v => updateByPath('objectives.vocab.satellite', v)} isPreview={isPreview} />
             </div>
             <div>
-              <h3 className="text-sm font-bold font-zh text-indigo-500 mb-4 uppercase tracking-widest">（二）句型目标 / Sentences</h3>
-              <EditableLine label="核心句型" value={data.objectives.patterns.core} onChange={v => update('objectives.patterns.core', v)} />
-              <EditableLine label="基础句型" value={data.objectives.patterns.basic} onChange={v => update('objectives.patterns.basic', v)} />
-              <EditableLine label="卫星句型" value={data.objectives.patterns.satellite} onChange={v => update('objectives.patterns.satellite', v)} />
+              <h3 className="text-[11px] font-bold font-zh text-indigo-400 mb-4 uppercase tracking-[0.2em] opacity-80">（二）句型目标 / Sentences</h3>
+              <Clarify text="核心/基础/卫星句型" />
+              <EditableLine label="核心句型" value={data.objectives.patterns.core} onChange={v => updateByPath('objectives.patterns.core', v)} isPreview={isPreview} />
+              <EditableLine label="基础句型" value={data.objectives.patterns.basic} onChange={v => updateByPath('objectives.patterns.basic', v)} isPreview={isPreview} />
+              <EditableLine label="卫星句型" value={data.objectives.patterns.satellite} onChange={v => updateByPath('objectives.patterns.satellite', v)} isPreview={isPreview} />
             </div>
             <div>
-              <h3 className="text-sm font-bold font-zh text-indigo-500 mb-4 uppercase tracking-widest">（三）拓展语言目标 / Expansion</h3>
-              <EditableLine label="文化拓展" value={data.objectives.expansion.culture} onChange={v => update('objectives.expansion.culture', v)} />
-              <EditableLine label="日常表达拓展" value={data.objectives.expansion.daily} onChange={v => update('objectives.expansion.daily', v)} />
-              <EditableLine label="行为习惯培养" value={data.objectives.expansion.habits} onChange={v => update('objectives.expansion.habits', v)} />
+              <h3 className="text-[11px] font-bold font-zh text-indigo-400 mb-4 uppercase tracking-[0.2em] opacity-80">（三）拓展目标 / Expansion</h3>
+              <EditableLine label="文化拓展" value={data.objectives.expansion.culture} onChange={v => updateByPath('objectives.expansion.culture', v)} isPreview={isPreview} />
+              <EditableLine label="日常表达" value={data.objectives.expansion.daily} onChange={v => updateByPath('objectives.expansion.daily', v)} isPreview={isPreview} />
+              <EditableLine label="行为习惯" value={data.objectives.expansion.habits} onChange={v => updateByPath('objectives.expansion.habits', v)} isPreview={isPreview} />
             </div>
           </div>
         </section>
 
         {/* 03 Games & Materials */}
-        <section className="mb-16 relative z-10">
-          <SectionTitle num="03" title="教具与互动准备" onClear={() => { clearSection('materials'); clearSection('games'); }} />
+        <section className="mb-12 relative z-10">
+          <SectionTitle num="03" title="教具与互动准备" onClear={() => { updateByPath('materials', INITIAL_STATE.materials); updateByPath('games', INITIAL_STATE.games); }} isPreview={isPreview} />
           <div className="flex flex-col space-y-12">
             <div>
-              <h3 className="text-sm font-bold font-zh text-slate-400 mb-4 uppercase tracking-widest">（一）教具清单</h3>
+              <h3 className="text-[11px] font-bold font-zh text-slate-400 mb-4 uppercase tracking-[0.2em]">（一）教具清单</h3>
               <div className="space-y-1">
-                <EditableLine label="词汇卡片" value={data.materials.cards} onChange={v => update('materials.cards', v)} />
-                <EditableLine label="实物教具" value={data.materials.realia} onChange={v => update('materials.realia', v)} />
-                <EditableLine label="多媒体设备" value={data.materials.multimedia} onChange={v => update('materials.multimedia', v)} />
-                <EditableLine label="奖励道具" value={data.materials.rewards} onChange={v => update('materials.rewards', v)} />
+                <EditableLine label="词汇卡片" value={data.materials.cards} onChange={v => updateByPath('materials.cards', v)} isPreview={isPreview} />
+                <EditableLine label="实物教具" value={data.materials.realia} onChange={v => updateByPath('materials.realia', v)} isPreview={isPreview} />
+                <EditableLine label="多媒体设备" value={data.materials.multimedia} onChange={v => updateByPath('materials.multimedia', v)} isPreview={isPreview} />
+                <EditableLine label="奖励道具" value={data.materials.rewards} onChange={v => updateByPath('materials.rewards', v)} isPreview={isPreview} />
               </div>
             </div>
             <div>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-bold font-zh text-slate-400 uppercase tracking-widest">（二）互动游戏</h3>
+                <h3 className="text-[11px] font-bold font-zh text-slate-400 uppercase tracking-[0.2em]">（二）互动游戏</h3>
                 {!isPreview && (
-                  <ActionButton onClick={addGame} label="新增游戏位置" variant="add" />
+                  <button onClick={addGame} className="no-print bg-indigo-50 text-indigo-600 px-3 py-1 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-colors">+ 新增游戏</button>
                 )}
               </div>
-              <div className="space-y-8">
+              <div className="space-y-6">
                 {data.games.map((game, i) => (
-                  <div key={i} className={`group/game relative p-8 bg-slate-50/50 border border-slate-100 transition-all ${isPreview ? 'rounded-none border-slate-400 bg-transparent' : 'rounded-3xl shadow-sm'}`}>
+                  <div key={i} className={`group/game relative p-6 bg-slate-50/50 border border-slate-100 transition-all ${isPreview ? 'rounded-none border-slate-400 bg-transparent p-0' : 'rounded-2xl shadow-sm'}`}>
                     {!isPreview && data.games.length > 1 && (
-                      <div className="absolute top-6 right-6 opacity-0 group-hover/game:opacity-100 transition-opacity no-print">
-                        <ActionButton onClick={() => removeGame(i)} label="删除" variant="remove" />
-                      </div>
+                      <button onClick={() => removeGame(i)} className="absolute top-4 right-4 no-print text-red-400 hover:text-red-600 font-bold text-[10px] uppercase">删除</button>
                     )}
-                    <div className="text-xs font-bold text-indigo-400 mb-6 tracking-widest uppercase flex items-center gap-2">
-                      <span className="w-4 h-[1px] bg-indigo-200"></span>
-                      Game Session {i+1}
-                      <span className="w-4 h-[1px] bg-indigo-200"></span>
-                    </div>
-                    <div className="space-y-2">
-                      <EditableLine label="游戏名称" value={game.name} onChange={v => { const g = [...data.games]; g[i].name = v; setData({ ...data, games: g }); }} />
-                      <EditableLine label="游戏目的" value={game.goal} onChange={v => { const g = [...data.games]; g[i].goal = v; setData({ ...data, games: g }); }} />
-                      <EditableLine label="游戏准备" value={game.prep} onChange={v => { const g = [...data.games]; g[i].prep = v; setData({ ...data, games: g }); }} />
-                      <EditableLine label="游戏规则" value={game.rules} onChange={v => { const g = [...data.games]; g[i].rules = v; setData({ ...data, games: g }); }} />
+                    <div className="text-[10px] font-bold text-indigo-300 mb-4 tracking-widest uppercase flex items-center gap-2">Game {i+1}</div>
+                    <div className="space-y-1">
+                      <EditableLine label="游戏名称" value={game.name} onChange={v => { const g = [...data.games]; g[i].name = v; updateByPath('games', g); }} isPreview={isPreview} />
+                      <EditableLine label="游戏目的" value={game.goal} onChange={v => { const g = [...data.games]; g[i].goal = v; updateByPath('games', g); }} isPreview={isPreview} />
+                      <EditableLine label="游戏准备" value={game.prep} onChange={v => { const g = [...data.games]; g[i].prep = v; updateByPath('games', g); }} isPreview={isPreview} />
+                      <EditableLine label="游戏规则" value={game.rules} onChange={v => { const g = [...data.games]; g[i].rules = v; updateByPath('games', g); }} isPreview={isPreview} />
                     </div>
                   </div>
                 ))}
@@ -373,148 +258,89 @@ const App: React.FC = () => {
         </section>
 
         {/* 04 Implementation */}
-        <section className="mb-16 page-break-before relative z-10">
-          <SectionTitle num="04" title="教学环节实施" onClear={() => clearSection('steps')} />
-          <div className={`border border-slate-200 overflow-hidden shadow-sm transition-all ${isPreview ? 'rounded-none border-slate-400' : 'rounded-2xl'}`}>
+        <section className="mb-12 page-break-before relative z-10">
+          <SectionTitle num="04" title="教学环节实施" onClear={() => updateByPath('steps', INITIAL_STATE.steps)} isPreview={isPreview} />
+          <div className={`border border-slate-200 overflow-hidden shadow-sm ${isPreview ? 'rounded-none border-slate-400' : 'rounded-2xl'}`}>
             <table className="w-full border-collapse table-fixed">
               <thead className="bg-slate-50 border-b border-slate-200">
-                <tr className="font-zh text-xs font-bold text-slate-400 uppercase tracking-tighter">
-                  <th className="p-4 w-[12%] text-center border-r border-slate-200">环节</th>
-                  <th className="p-4 w-[8%] text-center border-r border-slate-200">时长</th>
-                  <th className="p-4 w-[22%] text-left border-r border-slate-200">教学设计</th>
-                  <th className="p-4 w-[22%] text-left border-r border-slate-200">课堂用语</th>
-                  <th className="p-4 w-[18%] text-left border-r border-slate-200">难点/注意</th>
-                  <th className="p-4 w-[18%] text-left">板书</th>
+                <tr className="font-zh text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                  <th className="p-3 w-[12%] text-center border-r border-slate-200">环节</th>
+                  <th className="p-3 w-[8%] text-center border-r border-slate-200">时长</th>
+                  <th className="p-3 w-[22%] text-left border-r border-slate-200">教学设计</th>
+                  <th className="p-3 w-[22%] text-left border-r border-slate-200">课堂用语</th>
+                  <th className="p-3 w-[18%] text-left border-r border-slate-200">注意</th>
+                  <th className="p-3 w-[18%] text-left">板书</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {data.steps.map((step, i) => (
-                  <tr key={i} className={`group/step relative transition-colors ${isPreview ? '' : 'hover:bg-slate-50/30'}`}>
-                    <td className="p-3 align-top text-center border-r border-slate-200 relative">
-                      {!isPreview && data.steps.length > 1 && (
-                        <button 
-                          onClick={() => removeStep(i)}
-                          className="absolute -left-2 top-2 opacity-0 group-hover/step:opacity-100 bg-red-500 text-white p-1 rounded-full shadow-lg z-10 hover:scale-110 transition-all no-print"
-                          title="删除此环节"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M20 12H4"/></svg>
-                        </button>
-                      )}
-                      <textarea 
-                        readOnly={isPreview} 
-                        className="w-full outline-none border-none resize-none font-zh text-[13px] font-bold text-slate-700 text-center bg-transparent" 
-                        value={step.step} 
-                        rows={2} 
-                        onPaste={(e) => handlePaste(e, (v) => { const s = [...data.steps]; s[i].step = v; setData({ ...data, steps: s }); })}
-                        onChange={e => { const s = [...data.steps]; s[i].step = e.target.value; setData({ ...data, steps: s }); }} 
-                        placeholder={isPreview ? "" : `步骤 ${i+1}`} 
-                      />
+                  <tr key={i} className="group/step relative">
+                    <td className="p-2 align-top text-center border-r border-slate-200">
+                      <textarea readOnly={isPreview} className="w-full outline-none border-none resize-none font-zh text-xs font-bold text-slate-700 text-center bg-transparent h-20" value={step.step} onChange={e => { const s = [...data.steps]; s[i].step = e.target.value; updateByPath('steps', s); }} />
                     </td>
-                    <td className="p-3 align-top border-r border-slate-200">
-                      <textarea 
-                        readOnly={isPreview} 
-                        className="w-full outline-none border-none resize-none font-content text-sm text-center text-indigo-500 font-bold bg-transparent" 
-                        value={step.duration} 
-                        onPaste={(e) => handlePaste(e, (v) => { const s = [...data.steps]; s[i].duration = v; setData({ ...data, steps: s }); })}
-                        onChange={e => { const s = [...data.steps]; s[i].duration = e.target.value; setData({ ...data, steps: s }); }} 
-                        placeholder={isPreview ? "" : "Min"} 
-                      />
+                    <td className="p-2 align-top border-r border-slate-200">
+                      <input readOnly={isPreview} className="w-full outline-none border-none font-content text-sm text-center text-indigo-500 font-bold bg-transparent" value={step.duration} onChange={e => { const s = [...data.steps]; s[i].duration = e.target.value; updateByPath('steps', s); }} />
                     </td>
-                    {['design', 'instructions', 'notes', 'blackboard'].map((field, idx) => (
-                      <td key={field} className={`p-3 align-top ${idx < 3 ? 'border-r border-slate-200' : ''}`}>
-                        <textarea 
-                          readOnly={isPreview} 
-                          className="w-full outline-none border-none resize-none font-content text-sm text-slate-600 bg-transparent min-h-[140px] leading-relaxed" 
-                          value={(step as any)[field]} 
-                          onPaste={(e) => handlePaste(e, (v) => { const s = [...data.steps]; (s[i] as any)[field] = v; setData({ ...data, steps: s }); })}
-                          onChange={e => { const s = [...data.steps]; (s[i] as any)[field] = e.target.value; setData({ ...data, steps: s }); }} 
-                          placeholder="..." 
-                        />
-                      </td>
-                    ))}
+                    <td className="p-2 align-top border-r border-slate-200">
+                      <textarea readOnly={isPreview} className="w-full outline-none border-none resize-none font-content text-xs text-slate-600 bg-transparent h-40 leading-relaxed" value={step.design} onChange={e => { const s = [...data.steps]; s[i].design = e.target.value; updateByPath('steps', s); }} />
+                    </td>
+                    <td className="p-2 align-top border-r border-slate-200">
+                      <textarea readOnly={isPreview} className="w-full outline-none border-none resize-none font-content text-xs text-slate-600 bg-transparent h-40 italic leading-relaxed" value={step.instructions} onChange={e => { const s = [...data.steps]; s[i].instructions = e.target.value; updateByPath('steps', s); }} />
+                    </td>
+                    <td className="p-2 align-top border-r border-slate-200">
+                      <textarea readOnly={isPreview} className="w-full outline-none border-none resize-none font-content text-xs text-red-400 bg-transparent h-40 leading-relaxed" value={step.notes} onChange={e => { const s = [...data.steps]; s[i].notes = e.target.value; updateByPath('steps', s); }} />
+                    </td>
+                    <td className="p-2 align-top">
+                      <textarea readOnly={isPreview} className="w-full outline-none border-none resize-none font-content text-xs text-slate-600 bg-transparent h-40 leading-relaxed" value={step.blackboard} onChange={e => { const s = [...data.steps]; s[i].blackboard = e.target.value; updateByPath('steps', s); }} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {!isPreview && (
-            <div className="mt-4 flex justify-center no-print">
-              <button 
-                onClick={addStep}
-                className="flex items-center gap-2 px-6 py-2 bg-white border border-slate-200 text-slate-500 rounded-xl hover:text-indigo-600 hover:border-indigo-100 hover:bg-indigo-50 transition-all text-sm font-bold shadow-sm"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/></svg>
-                添加新的实施环节
-              </button>
-            </div>
-          )}
         </section>
 
         {/* 05 Connection */}
-        <section className="mb-16 relative z-10">
-          <SectionTitle num="05" title="教学内容衔接" onClear={() => clearSection('connection')} />
-          <div className={`border border-slate-100 overflow-hidden bg-slate-50/30 transition-all ${isPreview ? 'rounded-none border-slate-400 bg-transparent' : 'rounded-3xl'}`}>
-            { [
-              { label: '本次课核心回顾', path: 'connection.review' },
-              { label: '下次课主题预告', path: 'connection.preview' },
-              { label: '预习任务布置', path: 'connection.homework' },
-              { label: '教具衔接准备', path: 'connection.prep' },
-            ].map((item, idx) => (
-              <div key={item.path} className={`flex ${idx !== 0 ? 'border-t border-slate-100' : ''} ${isPreview ? 'border-slate-400' : ''}`}>
-                <div className={`w-[180px] p-8 font-zh font-bold text-sm text-slate-400 border-r border-slate-100 flex items-center justify-center text-center ${isPreview ? 'border-slate-400' : ''}`}>
-                  {item.label}
-                </div>
-                <div className="flex-1">
-                  <textarea
-                    readOnly={isPreview}
-                    className={`w-full p-8 outline-none border-none resize-none font-content text-lg text-slate-800 bg-transparent placeholder-slate-200 min-h-[120px] leading-relaxed transition-colors ${isPreview ? 'cursor-default' : 'focus:bg-white/50'}`}
-                    value={getValueByPath(data, item.path)}
-                    onPaste={(e) => handlePaste(e, (v) => update(item.path, v))}
-                    onChange={e => update(item.path, e.target.value)}
-                    placeholder={isPreview ? "" : PLACEHOLDER}
-                  />
-                </div>
-              </div>
-            ))}
+        <section className="mb-12 relative z-10">
+          <SectionTitle num="05" title="教学内容衔接" onClear={() => updateByPath('connection', INITIAL_STATE.connection)} isPreview={isPreview} />
+          <div className="space-y-1">
+            <EditableLine label="课堂复习 / Review" value={data.connection.review} onChange={v => updateByPath('connection.review', v)} isPreview={isPreview} />
+            <EditableLine label="内容预告 / Preview" value={data.connection.preview} onChange={v => updateByPath('connection.preview', v)} isPreview={isPreview} />
+            <EditableLine label="家庭作业 / Homework" value={data.connection.homework} onChange={v => updateByPath('connection.homework', v)} isPreview={isPreview} />
+            <EditableLine label="课前准备 / Prep" value={data.connection.prep} onChange={v => updateByPath('connection.prep', v)} isPreview={isPreview} />
           </div>
         </section>
 
-        {/* 06 Feedback */}
-        <section className="mb-16 page-break-before relative z-10">
-          <SectionTitle num="06" title="课后沟通备忘录" onClear={() => clearSection('feedback')} />
-          <div className={`border border-slate-200 overflow-hidden shadow-sm transition-all ${isPreview ? 'rounded-none border-slate-400' : 'rounded-2xl'}`}>
-            <table className="w-full border-collapse table-fixed">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-400 font-zh text-xs font-bold uppercase tracking-widest">
-                <tr>
-                  <th className="p-4 w-[18%] border-r border-slate-200 text-center">沟通对象</th>
-                  <th className="p-4 w-[32%] border-r border-slate-200">具体内容</th>
-                  <th className="p-4 w-[25%] border-r border-slate-200">时间</th>
-                  <th className="p-4 w-[25%]">后续跟进</th>
+        {/* 06 Post-class Communication */}
+        <section className="mb-12 relative z-10">
+          <SectionTitle num="06" title="课后沟通备忘录" onClear={() => updateByPath('feedback', INITIAL_STATE.feedback)} isPreview={isPreview} />
+          <div className={`border border-slate-200 overflow-hidden shadow-sm ${isPreview ? 'rounded-none border-slate-400' : 'rounded-2xl'}`}>
+            <table className="w-full border-collapse">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr className="font-zh text-[10px] font-bold text-slate-400 uppercase">
+                  <th className="p-3 w-[15%] text-center border-r border-slate-200">反馈维度</th>
+                  <th className="p-3 w-[55%] text-left border-r border-slate-200">反馈内容 / Feedback Content</th>
+                  <th className="p-3 w-[15%] text-center border-r border-slate-200">反馈时间</th>
+                  <th className="p-3 w-[15%] text-center">后续跟进计划</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody className="divide-y divide-slate-200 font-content">
                 {[
-                  { label: '学员', sub: 'Student', p: 'student' },
-                  { label: '家长反馈', sub: 'Parent', p: 'parent' },
-                  { label: '教学搭档', sub: 'Partner', p: 'partner' },
-                ].map(row => (
-                  <tr key={row.p} className={`${isPreview ? '' : 'hover:bg-slate-50/30'}`}>
-                    <td className="p-6 font-zh text-center border-r border-slate-200 bg-slate-50/10">
-                      <div className="font-zh font-bold text-[14px] text-slate-500 leading-tight">{row.label}</div>
-                      <div className="font-content text-[9px] text-slate-400 uppercase tracking-tighter mt-1 opacity-70">{row.sub}</div>
+                  { id: 'student', label: '学员反馈' },
+                  { id: 'parent', label: '家长沟通' },
+                  { id: 'partner', label: '搭档协作' },
+                ].map((row) => (
+                  <tr key={row.id}>
+                    <td className="p-3 text-center bg-slate-50/30 border-r border-slate-200 font-zh font-bold text-xs text-slate-500">{row.label}</td>
+                    <td className="p-2 border-r border-slate-200">
+                      <textarea readOnly={isPreview} className="w-full outline-none border-none resize-none text-sm text-slate-800 bg-transparent min-h-[60px]" value={(data.feedback as any)[row.id].content} onChange={e => updateByPath(`feedback.${row.id}.content`, e.target.value)} />
                     </td>
-                    {['content', 'time', 'plan'].map((field, idx) => (
-                      <td key={field} className={`p-2 align-top ${idx < 2 ? 'border-r border-slate-200' : ''}`}>
-                        <textarea
-                          readOnly={isPreview}
-                          className="w-full p-3 outline-none border-none resize-none font-content text-base text-slate-600 bg-transparent min-h-[150px] leading-relaxed"
-                          value={getValueByPath(data, `feedback.${row.p}.${field}`)}
-                          onPaste={(e) => handlePaste(e, (v) => update(`feedback.${row.p}.${field}`, v))}
-                          onChange={e => update(`feedback.${row.p}.${field}`, e.target.value)}
-                          placeholder={isPreview ? "" : "..."}
-                        />
-                      </td>
-                    ))}
+                    <td className="p-2 border-r border-slate-200">
+                      <input readOnly={isPreview} className="w-full outline-none border-none text-center text-xs text-slate-500 bg-transparent" value={(data.feedback as any)[row.id].time} onChange={e => updateByPath(`feedback.${row.id}.time`, e.target.value)} />
+                    </td>
+                    <td className="p-2">
+                      <textarea readOnly={isPreview} className="w-full outline-none border-none resize-none text-xs text-indigo-400 bg-transparent min-h-[60px]" value={(data.feedback as any)[row.id].plan} onChange={e => updateByPath(`feedback.${row.id}.plan`, e.target.value)} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -523,66 +349,32 @@ const App: React.FC = () => {
         </section>
 
         {/* Footer */}
-        <div className="mt-24 pt-10 border-t border-slate-100 text-center relative z-10 print:mt-12 print:pt-4">
-          <p className="text-slate-400 font-content text-[10px] tracking-[0.1em] uppercase font-bold text-center">CAMPUPRO ENGLISH Training & Development Department</p>
-          <p className="text-slate-300 font-content text-[8px] tracking-[0.4em] uppercase mt-1 print:hidden">Private & Confidential • Professional English Teaching Plan</p>
+        <div className="mt-20 pt-8 border-t border-slate-100 text-center relative z-10 opacity-50">
+          <p className="text-slate-400 font-content text-[9px] tracking-[0.2em] uppercase font-bold">CAMPUPRO ENGLISH Training & Development Department</p>
+          <p className="text-slate-300 text-[8px] mt-1 font-zh">内部教研材料 · 严禁外传</p>
         </div>
       </div>
 
       <style>{`
-        /* 极致优化的打印版式：与页面保持100%一致，不强制黑白 */
         @media print {
           .no-print { display: none !important; }
           body { background: white !important; margin: 0; padding: 0; }
-          .paper { 
-            border: none !important; 
-            box-shadow: none !important; 
-            width: 100% !important; 
-            max-width: none !important; 
-            margin: 0 !important; 
-            padding: 10mm !important; 
-            border-radius: 0 !important;
-            transform: none !important;
-            /* 强制浏览器渲染颜色和背景 */
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
+          .paper { border: none !important; box-shadow: none !important; width: 100% !important; max-width: none !important; margin: 0 !important; padding: 10mm !important; border-radius: 0 !important; transform: none !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .page-break-before { page-break-before: always; }
           input, textarea { background: transparent !important; color: inherit !important; border: none !important; }
           @page { margin: 10mm; size: A4; }
           textarea::placeholder { color: transparent !important; }
-          
-          /* 保持色彩和圆角 */
-          .bg-indigo-500 { background-color: #6366f1 !important; }
-          .text-indigo-500 { color: #6366f1 !important; opacity: 1 !important; }
-          .bg-slate-50, .bg-slate-50\\/50, .bg-slate-50\\/30, .bg-slate-50\\/10 { background-color: #f8fafc !important; }
-          .border-slate-200 { border-color: #e2e8f0 !important; }
-          .border-slate-100 { border-color: #f1f5f9 !important; }
-          .border-slate-50 { border-color: #f8fafc !important; }
         }
-        
-        .font-zh { font-family: "Microsoft YaHei", sans-serif; }
-        .font-content { 
-          font-family: "Calibri", "Microsoft YaHei", sans-serif; 
-          font-style: italic;
-        }
-        
-        textarea::placeholder { 
-          font-family: "Microsoft YaHei"; 
-          font-size: 0.75rem; 
-          opacity: 0.3;
-          color: #94a3b8;
-          font-style: normal;
-        }
-
         textarea::-webkit-scrollbar { width: 0; height: 0; }
-        table { table-layout: fixed; width: 100%; border-spacing: 0; border-collapse: collapse; }
         .paper { min-height: 297mm; }
-        
-        h1, h2, h3, th, td { color: #1e293b; }
+        textarea { white-space: pre-wrap; word-break: break-word; }
       `}</style>
     </div>
   );
 };
+
+const Clarify = ({ text }: { text: string }) => (
+  <div className="text-[10px] text-slate-300 font-zh mb-1 italic">Note: {text}</div>
+);
 
 export default App;
