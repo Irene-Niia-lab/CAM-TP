@@ -115,7 +115,7 @@ const EditableLine = memo(({ label, value, onChange, isPreview, placeholder = "�
 
 const App: React.FC = () => {
   const [data, setData] = useState<TeachingPlan>(() => {
-    const saved = localStorage.getItem('teaching-plan-v11');
+    const saved = localStorage.getItem('teaching-plan-v12');
     return saved ? JSON.parse(saved) : INITIAL_STATE;
   });
   
@@ -124,7 +124,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    localStorage.setItem('teaching-plan-v11', JSON.stringify(data));
+    localStorage.setItem('teaching-plan-v12', JSON.stringify(data));
     const { level, unit, lessonNo } = data.basic;
     const formatPart = (val: string, prefix: string) => {
       const clean = (val || '').trim();
@@ -161,6 +161,7 @@ const App: React.FC = () => {
         return await ai.models.generateContent(parameters);
       } catch (error: any) {
         lastError = error;
+        console.warn(`AI 尝试 ${i + 1} 失败:`, error);
         const delay = Math.pow(2, i) * 1000;
         await new Promise(resolve => setTimeout(resolve, delay));
       }
@@ -196,7 +197,7 @@ const App: React.FC = () => {
         contents: [
           {
             parts: [
-              { text: "你是一个高精度的教案数据提取专家。请从提供的文档内容或图片中，将对应位置的内容【原封不动】地提取出来并按指定的JSON格式返回。要求：1. 严禁对原始内容进行任何润色、优化、改写、删减或归纳。2. 必须完整保留原文的所有文字描述、标点符号。3. 如果某个字段在原文中存在，必须完整保留其每一个字符。4. 特别注意：在提取'steps'（教学环节）时，请将环节的名称提取到'step'字段中，如果原文档中有编号（如1, 2, 第一步等），也请一并保留在'step'字符串内。5. 严格遵守JSON Schema。" },
+              { text: "你是一个专业的教案数据提取专家。请从提供的文档或图片中将对应位置的内容提取出来并按指定的JSON格式返回。要求：1. 严禁修改原文，完整保留文字、标点。2. 在提取'steps'（教学环节）时，将环节名称提取到'step'字段，如果原文中带编号，请保留编号。3. 如果某项缺失，请保持空字符串。4. 严格遵守 JSON 结构。" },
               contentPart
             ]
           }
@@ -278,7 +279,7 @@ const App: React.FC = () => {
       });
 
       const textOutput = response.text;
-      if (!textOutput) throw new Error("AI returned empty content.");
+      if (!textOutput) throw new Error("AI 返回内容为空。");
 
       const extractedData = JSON.parse(textOutput);
       
@@ -291,8 +292,8 @@ const App: React.FC = () => {
       
       setData({ ...INITIAL_STATE, ...extractedData });
     } catch (error: any) {
-      console.error("Extraction failed:", error);
-      alert(`信息提取失败。错误详情: ${error.message || 'Unknown error'}`);
+      console.error("智能提取失败:", error);
+      alert(`智能导入失败：${error.message || '网络繁忙，请稍后重试'}`);
     } finally {
       setIsProcessing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -357,7 +358,7 @@ const App: React.FC = () => {
           ) : (
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
           )}
-          {isProcessing ? '正在提取原文...' : '智能导入文档'}
+          {isProcessing ? '正在智能提取...' : '智能导入文档'}
         </button>
 
         <button 
@@ -367,7 +368,7 @@ const App: React.FC = () => {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
           预览模式
         </button>
-        <button onClick={() => { if(confirm('清空全部内容？')) setData(INITIAL_STATE); }} className="bg-white/80 backdrop-blur border border-slate-200 text-slate-300 px-6 py-2 rounded-xl hover:text-red-400 transition-all text-[10px] font-medium uppercase tracking-widest">
+        <button onClick={() => { if(confirm('重置所有内容吗？')) setData(INITIAL_STATE); }} className="bg-white/80 backdrop-blur border border-slate-200 text-slate-300 px-6 py-2 rounded-xl hover:text-red-400 transition-all text-[10px] font-medium uppercase tracking-widest">
           RESET ALL
         </button>
       </div>
@@ -375,7 +376,7 @@ const App: React.FC = () => {
       {isPreview && (
         <div className="no-print fixed top-0 left-0 w-full flex justify-center py-4 bg-slate-900/50 backdrop-blur-md z-[60]">
           <button onClick={() => setIsPreview(false)} className="bg-white text-slate-900 px-6 py-2 rounded-full font-bold text-xs shadow-2xl flex items-center gap-2">
-            退出预览
+            退出预览模式
           </button>
         </div>
       )}
@@ -393,22 +394,28 @@ const App: React.FC = () => {
         {/* 01 Basic Info */}
         <section className="mb-10 relative z-10">
           <SectionTitle num="01" title="基础课程信息" onClear={() => updateByPath('basic', INITIAL_STATE.basic)} isPreview={isPreview} />
-          <div className={`grid grid-cols-2 border border-slate-200 rounded-xl overflow-hidden ${isPreview ? 'rounded-none border-slate-400' : ''}`}>
+          <div className={`grid grid-cols-2 border border-slate-200 rounded-xl overflow-hidden ${isPreview ? 'rounded-none border-slate-400' : 'rounded-xl'}`}>
             {[
-              { label: '课程级别', path: 'basic.level' },
-              { label: '单元', path: 'basic.unit' },
-              { label: '课号', path: 'basic.lessonNo' },
-              { label: '时长', path: 'basic.duration' },
-              { label: '授课班级', path: 'basic.className' },
-              { label: '人数', path: 'basic.studentCount' },
-              { label: '日期', path: 'basic.date' },
+              { label: '课程级别', path: 'basic.level', placeholder: '如: PU2' },
+              { label: '单元', path: 'basic.unit', placeholder: '如: U3' },
+              { label: '课号', path: 'basic.lessonNo', placeholder: '如: L1' },
+              { label: '时长', path: 'basic.duration', placeholder: '如: 45min' },
+              { label: '授课班级', path: 'basic.className', placeholder: '填写班号' },
+              { label: '人数', path: 'basic.studentCount', placeholder: '填写人数' },
+              { label: '日期', path: 'basic.date', placeholder: 'YYYY-MM-DD' },
             ].map((item, idx) => (
               <div key={item.path} className={`flex border-slate-100 ${idx % 2 === 0 ? 'border-r' : ''} ${idx < 6 ? 'border-b' : ''} ${idx === 6 ? 'col-span-2' : ''} ${isPreview ? 'border-slate-400' : ''}`}>
                 <div className="w-[90px] bg-slate-50/50 p-3 font-zh font-bold text-[10px] text-slate-400 flex items-center justify-center text-center uppercase tracking-tighter">
                   {item.label}
                 </div>
                 <div className="flex-1 p-2">
-                  <input readOnly={isPreview} className="w-full outline-none border-none font-content text-center text-base text-slate-700 bg-transparent" value={(data.basic as any)[item.path.split('.')[1]]} onChange={e => updateByPath(item.path, e.target.value)} />
+                  <input 
+                    readOnly={isPreview} 
+                    placeholder={isPreview ? "" : item.placeholder}
+                    className="w-full outline-none border-none font-content text-center text-base text-slate-700 bg-transparent placeholder-slate-200" 
+                    value={(data.basic as any)[item.path.split('.')[1]]} 
+                    onChange={e => updateByPath(item.path, e.target.value)} 
+                  />
                 </div>
               </div>
             ))}
@@ -427,7 +434,6 @@ const App: React.FC = () => {
             </div>
             <div>
               <h3 className="text-xs font-bold font-zh text-indigo-400 mb-3 uppercase tracking-wider opacity-80">（二）句型目标 / Sentences</h3>
-              <Clarify text="核心/基础/卫星句型" />
               <EditableLine label="核心句型" value={data.objectives.patterns.core} onChange={v => updateByPath('objectives.patterns.core', v)} isPreview={isPreview} />
               <EditableLine label="基础句型" value={data.objectives.patterns.basic} onChange={v => updateByPath('objectives.patterns.basic', v)} isPreview={isPreview} />
               <EditableLine label="卫星句型" value={data.objectives.patterns.satellite} onChange={v => updateByPath('objectives.patterns.satellite', v)} isPreview={isPreview} />
@@ -467,7 +473,7 @@ const App: React.FC = () => {
                     {!isPreview && data.games.length > 1 && (
                       <button onClick={() => removeGame(i)} className="absolute top-3 right-3 no-print text-red-300 hover:text-red-500 font-bold text-[9px] uppercase">Remove</button>
                     )}
-                    <div className="text-[9px] font-bold text-indigo-300 mb-2 tracking-widest uppercase flex items-center gap-2">Game Instance {i+1}</div>
+                    <div className="text-[9px] font-bold text-indigo-300 mb-2 tracking-widest uppercase flex items-center gap-2">Game {i+1}</div>
                     <div className="space-y-0.5">
                       <EditableLine label="游戏名称" value={game.name} onChange={v => { const g = [...data.games]; g[i].name = v; updateByPath('games', g); }} isPreview={isPreview} />
                       <EditableLine label="游戏目的" value={game.goal} onChange={v => { const g = [...data.games]; g[i].goal = v; updateByPath('games', g); }} isPreview={isPreview} />
@@ -522,14 +528,14 @@ const App: React.FC = () => {
                           ✕
                         </button>
                       )}
-                      <div className="flex flex-col items-center">
-                        <span className="text-[12px] font-bold text-indigo-400/40 mb-1 select-none font-content">{i + 1}.</span>
+                      <div className="flex flex-col items-center justify-center min-h-[40px]">
+                        <span className="text-[12px] font-bold text-indigo-400/60 mb-1 select-none font-content">{i + 1}.</span>
                         <AutoResizingTextarea 
                           value={step.step} 
                           onChange={v => { const s = [...data.steps]; s[i].step = v; updateByPath('steps', s); }}
                           isPreview={isPreview}
                           className="font-zh text-[11px] font-bold text-slate-700 text-center"
-                          placeholder="环节名称"
+                          placeholder="环节"
                         />
                       </div>
                     </td>
@@ -592,7 +598,7 @@ const App: React.FC = () => {
             <EditableLine label="课堂复习 / Review" value={data.connection.review} onChange={v => updateByPath('connection.review', v)} isPreview={isPreview} />
             <EditableLine label="内容预告 / Preview" value={data.connection.preview} onChange={v => updateByPath('connection.preview', v)} isPreview={isPreview} />
             <EditableLine label="家庭作业 / Homework" value={data.connection.homework} onChange={v => updateByPath('connection.homework', v)} isPreview={isPreview} />
-            <EditableLine label="课前准备 / Prep" value={data.connection.prep} onChange={v => updateByPath('connection.prep', v)} isPreview={isPreview} />
+            <EditableLine label="下次课课前准备 / Prep" value={data.connection.prep} onChange={v => updateByPath('connection.prep', v)} isPreview={isPreview} />
           </div>
         </section>
 
@@ -677,9 +683,5 @@ const App: React.FC = () => {
     </div>
   );
 };
-
-const Clarify = ({ text }: { text: string }) => (
-  <div className="text-[9px] text-slate-300 font-zh mb-1 italic opacity-60 uppercase tracking-tighter">Note: {text}</div>
-);
 
 export default App;
