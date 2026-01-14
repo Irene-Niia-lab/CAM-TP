@@ -51,7 +51,8 @@ const AutoResizingTextarea = memo(({ value, onChange, isPreview, className, plac
   };
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full inline-block align-top">
+      {/* 网页显示层：仅在非打印状态可见 */}
       <textarea
         ref={textareaRef}
         rows={1}
@@ -61,9 +62,9 @@ const AutoResizingTextarea = memo(({ value, onChange, isPreview, className, plac
         value={value}
         onChange={handleChange}
       />
-      {/* 打印专用层：确保内容完整显示 */}
-      <div className={`hidden print:block whitespace-pre-wrap break-words min-h-[1em] ${className}`}>
-        {value || (isPreview ? "" : placeholder)}
+      {/* 打印/导出层：确保长文本完整换行且不限高 */}
+      <div className={`hidden print:block whitespace-pre-wrap break-words min-h-[1em] leading-relaxed ${className}`}>
+        {value || (isPreview ? "" : "")}
       </div>
     </div>
   );
@@ -493,7 +494,7 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* 04 Implementation - 重构以确保标题导出完整 */}
+        {/* 04 Implementation */}
         <section className="mb-10 page-break-before relative z-10">
           <SectionTitle 
             num="04" 
@@ -512,10 +513,11 @@ const App: React.FC = () => {
           <div className="space-y-8">
             {data.steps.map((step, i) => (
               <div key={i} className="group/step relative">
-                <div className="flex items-start gap-2 mb-2">
-                  <span className="font-bold text-slate-800 text-sm pt-0.5 select-none">{i + 1}.</span>
-                  <div className="flex-1 flex items-center justify-between">
-                    <div className="flex-1 max-w-[80%]">
+                {/* 环节标题行：优化序号与内容的同行显示 */}
+                <div className="flex items-start gap-2 mb-2 min-h-[1.5em]">
+                  <span className="font-bold text-slate-800 text-sm pt-0.5 select-none shrink-0">{i + 1}.</span>
+                  <div className="flex-1 flex items-start justify-between">
+                    <div className="flex-1 max-w-[90%]">
                       <AutoResizingTextarea 
                         value={step.step} 
                         onChange={v => { const s = [...data.steps]; s[i].step = v; updateByPath('steps', s); }}
@@ -527,9 +529,9 @@ const App: React.FC = () => {
                     {!isPreview && data.steps.length > 1 && (
                       <button 
                         onClick={() => removeStep(i)} 
-                        className="no-print opacity-0 group-hover/step:opacity-100 text-red-300 hover:text-red-500 font-bold text-[8px] uppercase transition-opacity ml-4"
+                        className="no-print opacity-0 group-hover/step:opacity-100 text-red-300 hover:text-red-500 font-bold text-[8px] uppercase transition-opacity ml-4 pt-1"
                       >
-                        Delete Step
+                        Delete
                       </button>
                     )}
                   </div>
@@ -648,11 +650,9 @@ const App: React.FC = () => {
           .paper { border: none !important; box-shadow: none !important; width: 100% !important; max-width: none !important; margin: 0 !important; padding: 10mm !important; border-radius: 0 !important; transform: none !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .page-break-before { page-break-before: always; }
           input, textarea { background: transparent !important; color: inherit !important; border: none !important; }
-          /* 关键：确保打印时强制显示完整内容 */
-          textarea { height: auto !important; overflow: visible !important; display: block !important; visibility: visible !important; }
+          /* 修复显示两次的问题：移除强制显示 textarea 的规则，改用组件内部控制 */
           @page { margin: 10mm; size: A4; }
           textarea::placeholder { color: transparent !important; }
-          .print-hidden { display: none !important; }
         }
         textarea::-webkit-scrollbar { width: 0; height: 0; }
         .paper { min-height: 297mm; }
