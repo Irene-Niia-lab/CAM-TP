@@ -115,7 +115,7 @@ const EditableLine = memo(({ label, value, onChange, isPreview, placeholder = "�
 
 const App: React.FC = () => {
   const [data, setData] = useState<TeachingPlan>(() => {
-    const saved = localStorage.getItem('teaching-plan-v12');
+    const saved = localStorage.getItem('teaching-plan-v13');
     return saved ? JSON.parse(saved) : INITIAL_STATE;
   });
   
@@ -124,7 +124,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    localStorage.setItem('teaching-plan-v12', JSON.stringify(data));
+    localStorage.setItem('teaching-plan-v13', JSON.stringify(data));
     const { level, unit, lessonNo } = data.basic;
     const formatPart = (val: string, prefix: string) => {
       const clean = (val || '').trim();
@@ -197,7 +197,7 @@ const App: React.FC = () => {
         contents: [
           {
             parts: [
-              { text: "你是一个专业的教案数据提取专家。请从提供的文档或图片中将对应位置的内容提取出来并按指定的JSON格式返回。要求：1. 严禁修改原文，完整保留文字、标点。2. 在提取'steps'（教学环节）时，将环节名称提取到'step'字段，如果原文中带编号，请保留编号。3. 如果某项缺失，请保持空字符串。4. 严格遵守 JSON 结构。" },
+              { text: "你是一个专业的教案数据提取专家。请从提供的文档或图片中将对应位置的内容提取出来并按指定的JSON格式返回。要求：1. 严禁修改原文，完整保留文字、标点。2. 在提取'steps'（教学环节）时，将环节名称提取到'step'字段。3. 如果某项缺失，请保持空字符串。4. 严格遵守 JSON 结构。" },
               contentPart
             ]
           }
@@ -487,7 +487,7 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* 04 Implementation */}
+        {/* 04 Implementation - 重构为 PDF 分块表格样式 (移除 PPT 页码) */}
         <section className="mb-10 page-break-before relative z-10">
           <SectionTitle 
             num="04" 
@@ -503,91 +503,62 @@ const App: React.FC = () => {
               </button>
             )}
           />
-          <div className={`border border-slate-200 overflow-hidden shadow-sm ${isPreview ? 'rounded-none border-slate-400' : 'rounded-xl'}`}>
-            <table className="w-full border-collapse">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr className="font-zh text-xs font-bold text-slate-400 uppercase tracking-tighter">
-                  <th className="p-2 w-[12%] text-center border-r border-slate-200">环节</th>
-                  <th className="p-2 w-[8%] text-center border-r border-slate-200">时长</th>
-                  <th className="p-2 w-[22%] text-left border-r border-slate-200">教学设计</th>
-                  <th className="p-2 w-[22%] text-left border-r border-slate-200">课堂用语</th>
-                  <th className="p-2 w-[18%] text-left border-r border-slate-200">注意</th>
-                  <th className="p-2 w-[18%] text-left">板书</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {data.steps.map((step, i) => (
-                  <tr key={i} className="group/step relative align-top">
-                    <td className="p-2 border-r border-slate-200 bg-slate-50/10 relative">
-                      {!isPreview && data.steps.length > 1 && (
-                        <button 
-                          onClick={() => removeStep(i)} 
-                          className="absolute -left-1 top-0 opacity-0 group-hover/step:opacity-100 no-print text-red-300 hover:text-red-500 font-bold text-[8px] transition-opacity"
-                          title="Remove Step"
-                        >
-                          ✕
-                        </button>
-                      )}
-                      <div className="flex flex-col items-center justify-center min-h-[40px]">
-                        <span className="text-[12px] font-bold text-indigo-400/60 mb-1 select-none font-content">{i + 1}.</span>
-                        <AutoResizingTextarea 
-                          value={step.step} 
-                          onChange={v => { const s = [...data.steps]; s[i].step = v; updateByPath('steps', s); }}
-                          isPreview={isPreview}
-                          className="font-zh text-[11px] font-bold text-slate-700 text-center"
-                          placeholder="环节"
-                        />
-                      </div>
-                    </td>
-                    <td className="p-2 border-r border-slate-200">
-                      <AutoResizingTextarea 
-                        value={step.duration} 
-                        onChange={v => { const s = [...data.steps]; s[i].duration = v; updateByPath('steps', s); }}
-                        isPreview={isPreview}
-                        className="font-content text-xs text-center text-indigo-500 font-bold"
-                        placeholder="Min"
-                      />
-                    </td>
-                    <td className="p-2 border-r border-slate-200">
-                      <AutoResizingTextarea 
-                        value={step.design} 
-                        onChange={v => { const s = [...data.steps]; s[i].design = v; updateByPath('steps', s); }}
-                        isPreview={isPreview}
-                        className="font-content text-xs text-slate-600 leading-relaxed"
-                        placeholder="..."
-                      />
-                    </td>
-                    <td className="p-2 border-r border-slate-200">
-                      <AutoResizingTextarea 
-                        value={step.instructions} 
-                        onChange={v => { const s = [...data.steps]; s[i].instructions = v; updateByPath('steps', s); }}
-                        isPreview={isPreview}
-                        className="font-content text-xs text-slate-500 italic leading-relaxed"
-                        placeholder="..."
-                      />
-                    </td>
-                    <td className="p-2 border-r border-slate-200">
-                      <AutoResizingTextarea 
-                        value={step.notes} 
-                        onChange={v => { const s = [...data.steps]; s[i].notes = v; updateByPath('steps', s); }}
-                        isPreview={isPreview}
-                        className="font-content text-xs text-red-400 leading-relaxed"
-                        placeholder="..."
-                      />
-                    </td>
-                    <td className="p-2">
-                      <AutoResizingTextarea 
-                        value={step.blackboard} 
-                        onChange={v => { const s = [...data.steps]; s[i].blackboard = v; updateByPath('steps', s); }}
-                        isPreview={isPreview}
-                        className="font-content text-xs text-slate-600 leading-relaxed"
-                        placeholder="..."
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-8">
+            {data.steps.map((step, i) => (
+              <div key={i} className="group/step relative">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500 text-white font-bold text-xs select-none">
+                      {i + 1}
+                    </span>
+                    <AutoResizingTextarea 
+                      value={step.step} 
+                      onChange={v => { const s = [...data.steps]; s[i].step = v; updateByPath('steps', s); }}
+                      isPreview={isPreview}
+                      className="font-zh text-sm font-bold text-slate-800"
+                      placeholder="环节名称 (如: Greeting)"
+                    />
+                  </div>
+                  {!isPreview && data.steps.length > 1 && (
+                    <button 
+                      onClick={() => removeStep(i)} 
+                      className="no-print opacity-0 group-hover/step:opacity-100 text-red-300 hover:text-red-500 font-bold text-[8px] uppercase transition-opacity"
+                    >
+                      Delete Step
+                    </button>
+                  )}
+                </div>
+
+                <div className={`border border-slate-200 overflow-hidden shadow-sm ${isPreview ? 'rounded-none border-slate-400' : 'rounded-xl'}`}>
+                  <table className="w-full border-collapse">
+                    <tbody className="divide-y divide-slate-100">
+                      {[
+                        { label: '时长', field: 'duration', placeholder: '如: 3 mins', className: 'font-content text-indigo-500 font-bold' },
+                        { label: '环节设计', field: 'design', placeholder: '描述老师和小朋友的互动环节...' },
+                        { label: '课堂指令/用语', field: 'instructions', placeholder: 'Teacher\'s talk: ...', className: 'italic text-slate-500' },
+                        { label: '难点/注意点', field: 'notes', placeholder: '注意事项...', className: 'text-red-400' },
+                        { label: '板书设计', field: 'blackboard', placeholder: '板书内容...' },
+                      ].map((row) => (
+                        <tr key={row.field} className="align-top">
+                          <td className="p-3 w-[120px] bg-slate-50/50 border-r border-slate-100 font-zh font-bold text-[10px] text-slate-400 uppercase tracking-tighter pt-4">
+                            {row.label}
+                          </td>
+                          <td className="p-3">
+                            <AutoResizingTextarea 
+                              value={(step as any)[row.field]} 
+                              onChange={v => { const s = [...data.steps]; (s[i] as any)[row.field] = v; updateByPath('steps', s); }}
+                              isPreview={isPreview}
+                              className={`text-xs text-slate-700 leading-relaxed ${row.className || ''}`}
+                              placeholder={row.placeholder}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
 
