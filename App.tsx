@@ -394,7 +394,7 @@ const App: React.FC = () => {
         <div className="text-center mb-12 relative z-10">
           <h1 className="text-3xl font-bold font-zh text-slate-900 tracking-[0.2em]">少儿英语线下课课堂教案</h1>
           <div className="mt-3 flex flex-col items-center justify-center gap-1">
-            <p className="text-indigo-400 font-content text-[10px] tracking-[0.2em] uppercase font-bold opacity-70">CAMPUPRO ENGLISH Training & Development Department</p>
+            <p className="text-indigo-400 font-content text-[10px] tracking-[0.2em] uppercase font-bold opacity-70">JIANYINGLINGHANG Training & Development Department</p>
           </div>
         </div>
 
@@ -638,7 +638,7 @@ const App: React.FC = () => {
 
         {/* Footer */}
         <div className="mt-16 pt-6 border-t border-slate-100 text-center relative z-10 opacity-30">
-          <p className="text-slate-400 font-content text-[8px] tracking-[0.3em] uppercase font-bold">CAMPUPRO ENGLISH Training & Development Department</p>
+          <p className="text-slate-400 font-content text-[8px] tracking-[0.3em] uppercase font-bold">JIANYINGLINGHANG Training & Development Department</p>
           <p className="text-slate-300 text-[7px] mt-1 font-zh tracking-widest">内部教研材料 · 严禁外传</p>
         </div>
       </div>
