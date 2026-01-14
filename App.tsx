@@ -51,15 +51,21 @@ const AutoResizingTextarea = memo(({ value, onChange, isPreview, className, plac
   };
 
   return (
-    <textarea
-      ref={textareaRef}
-      rows={1}
-      readOnly={isPreview}
-      placeholder={isPreview ? "" : placeholder}
-      className={`w-full outline-none border-none resize-none bg-transparent overflow-hidden leading-relaxed transition-all ${className}`}
-      value={value}
-      onChange={handleChange}
-    />
+    <div className="relative w-full">
+      <textarea
+        ref={textareaRef}
+        rows={1}
+        readOnly={isPreview}
+        placeholder={isPreview ? "" : placeholder}
+        className={`w-full outline-none border-none resize-none bg-transparent overflow-hidden leading-relaxed transition-all block ${className} print:hidden`}
+        value={value}
+        onChange={handleChange}
+      />
+      {/* 打印专用层：确保内容完整显示 */}
+      <div className={`hidden print:block whitespace-pre-wrap break-words min-h-[1em] ${className}`}>
+        {value || (isPreview ? "" : placeholder)}
+      </div>
+    </div>
   );
 });
 
@@ -487,7 +493,7 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* 04 Implementation - 重构为 PDF 分块表格样式 (移除 PPT 页码) */}
+        {/* 04 Implementation - 重构以确保标题导出完整 */}
         <section className="mb-10 page-break-before relative z-10">
           <SectionTitle 
             num="04" 
@@ -506,27 +512,27 @@ const App: React.FC = () => {
           <div className="space-y-8">
             {data.steps.map((step, i) => (
               <div key={i} className="group/step relative">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500 text-white font-bold text-xs select-none">
-                      {i + 1}
-                    </span>
-                    <AutoResizingTextarea 
-                      value={step.step} 
-                      onChange={v => { const s = [...data.steps]; s[i].step = v; updateByPath('steps', s); }}
-                      isPreview={isPreview}
-                      className="font-zh text-sm font-bold text-slate-800"
-                      placeholder="环节名称 (如: Greeting)"
-                    />
+                <div className="flex items-start gap-2 mb-2">
+                  <span className="font-bold text-slate-800 text-sm pt-0.5 select-none">{i + 1}.</span>
+                  <div className="flex-1 flex items-center justify-between">
+                    <div className="flex-1 max-w-[80%]">
+                      <AutoResizingTextarea 
+                        value={step.step} 
+                        onChange={v => { const s = [...data.steps]; s[i].step = v; updateByPath('steps', s); }}
+                        isPreview={isPreview}
+                        className="font-zh text-sm font-bold text-slate-800 tracking-tight"
+                        placeholder="环节名称 (如: Greeting)"
+                      />
+                    </div>
+                    {!isPreview && data.steps.length > 1 && (
+                      <button 
+                        onClick={() => removeStep(i)} 
+                        className="no-print opacity-0 group-hover/step:opacity-100 text-red-300 hover:text-red-500 font-bold text-[8px] uppercase transition-opacity ml-4"
+                      >
+                        Delete Step
+                      </button>
+                    )}
                   </div>
-                  {!isPreview && data.steps.length > 1 && (
-                    <button 
-                      onClick={() => removeStep(i)} 
-                      className="no-print opacity-0 group-hover/step:opacity-100 text-red-300 hover:text-red-500 font-bold text-[8px] uppercase transition-opacity"
-                    >
-                      Delete Step
-                    </button>
-                  )}
                 </div>
 
                 <div className={`border border-slate-200 overflow-hidden shadow-sm ${isPreview ? 'rounded-none border-slate-400' : 'rounded-xl'}`}>
@@ -642,9 +648,11 @@ const App: React.FC = () => {
           .paper { border: none !important; box-shadow: none !important; width: 100% !important; max-width: none !important; margin: 0 !important; padding: 10mm !important; border-radius: 0 !important; transform: none !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .page-break-before { page-break-before: always; }
           input, textarea { background: transparent !important; color: inherit !important; border: none !important; }
-          textarea { height: auto !important; overflow: visible !important; display: block !important; }
+          /* 关键：确保打印时强制显示完整内容 */
+          textarea { height: auto !important; overflow: visible !important; display: block !important; visibility: visible !important; }
           @page { margin: 10mm; size: A4; }
           textarea::placeholder { color: transparent !important; }
+          .print-hidden { display: none !important; }
         }
         textarea::-webkit-scrollbar { width: 0; height: 0; }
         .paper { min-height: 297mm; }
