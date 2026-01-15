@@ -182,7 +182,6 @@ const App: React.FC = () => {
         contentPart = { inlineData: { mimeType: file.type, data: base64 } };
       }
 
-      // 使用更稳健的 Prompt 引导，并移除可能导致错误的复杂 responseSchema，由 AI 自行生成 JSON 字符串后解析
       const prompt = `你是一个专业的教案数据提取专家。请从提供的文档或图片中将内容提取出来并按指定的 JSON 结构返回。
 要求：
 1. 严禁修改原文，完整保留文字、标点。
@@ -227,11 +226,9 @@ JSON 结构示例：
       const textOutput = response.text;
       if (!textOutput) throw new Error("AI 返回内容为空。");
 
-      // 提取 JSON，防止 AI 返回包含在 ```json 代码块中的内容
       const jsonString = textOutput.replace(/```json/g, '').replace(/```/g, '').trim();
       const extractedData = JSON.parse(jsonString);
       
-      // 补全 steps 到至少 5 个，保持 UI 一致性
       if (extractedData.steps && extractedData.steps.length < 5) {
         const currentCount = extractedData.steps.length;
         for (let i = currentCount; i < 5; i++) {
@@ -354,7 +351,7 @@ JSON 结构示例：
               { label: '日期', path: 'basic.date', placeholder: 'YYYY-MM-DD' },
             ].map((item, idx) => (
               <div key={item.path} className={`flex border-slate-100 ${idx % 2 === 0 ? 'border-r' : ''} ${idx < 6 ? 'border-b' : ''} ${idx === 6 ? 'col-span-2' : ''} ${isPreview ? 'border-slate-400' : ''}`}>
-                <div className="w-[90px] bg-slate-50/50 p-3 font-zh font-bold text-[10px] text-slate-400 flex items-center justify-center text-center uppercase tracking-tighter">
+                <div className="w-[90px] bg-slate-50/50 p-3 font-zh font-bold text-[10px] text-slate-400 flex items-center justify-center text-center uppercase tracking-tighter shrink-0">
                   {item.label}
                 </div>
                 <div className="flex-1 p-2">
@@ -429,7 +426,6 @@ JSON 结构示例：
                   </div>
                 ))}
                 
-                {/* 调整后的“添加游戏”按钮位置 */}
                 {!isPreview && (
                   <div className="no-print flex justify-end mt-4">
                     <button 
@@ -467,7 +463,7 @@ JSON 结构示例：
                         value={step.step} 
                         onChange={v => { const s = [...data.steps]; s[i].step = v; updateByPath('steps', s); }}
                         isPreview={isPreview}
-                        className="font-content text-[15px] font-bold text-slate-800 tracking-tight"
+                        className="font-content text-base font-bold text-slate-800 tracking-tight"
                         placeholder="环节名称 (如: Greeting)"
                       />
                     </div>
@@ -486,14 +482,14 @@ JSON 结构示例：
                   <table className="w-full border-collapse">
                     <tbody className="divide-y divide-slate-100">
                       {[
-                        { label: '时长', field: 'duration', placeholder: '如: 3 mins', className: 'font-content text-indigo-500 font-bold' },
-                        { label: '环节设计', field: 'design', placeholder: '描述老师和小朋友的互动环节...', className: 'font-content' },
-                        { label: '课堂指令/用语', field: 'instructions', placeholder: 'Teacher\'s talk: ...', className: 'font-content italic text-slate-500' },
-                        { label: '难点/注意点', field: 'notes', placeholder: '注意事项...', className: 'font-content text-red-400' },
-                        { label: '板书设计', field: 'blackboard', placeholder: '板书内容...', className: 'font-content' },
+                        { label: '时长', field: 'duration', placeholder: '如: 3 mins', className: 'font-content text-indigo-500 font-bold text-base' },
+                        { label: '环节设计', field: 'design', placeholder: '描述老师和小朋友的互动环节...', className: 'font-content text-base' },
+                        { label: '课堂指令/用语', field: 'instructions', placeholder: 'Teacher\'s talk: ...', className: 'font-content text-slate-500 text-base' },
+                        { label: '难点/注意点', field: 'notes', placeholder: '注意事项...', className: 'font-content text-red-400 text-base' },
+                        { label: '板书设计', field: 'blackboard', placeholder: '板书内容...', className: 'font-content text-base' },
                       ].map((row) => (
                         <tr key={row.field} className="align-top">
-                          <td className="p-3 w-[120px] bg-slate-50/50 border-r border-slate-100 font-zh font-bold text-[10px] text-slate-400 uppercase tracking-tighter pt-4">
+                          <td className="p-3 w-[120px] bg-slate-50/50 border-r border-slate-100 font-zh font-bold text-xs text-slate-400 uppercase tracking-tighter pt-4 text-center">
                             {row.label}
                           </td>
                           <td className="p-3">
@@ -501,7 +497,7 @@ JSON 结构示例：
                               value={(step as any)[row.field]} 
                               onChange={v => { const s = [...data.steps]; (s[i] as any)[row.field] = v; updateByPath('steps', s); }}
                               isPreview={isPreview}
-                              className={`text-[13px] text-slate-700 leading-relaxed ${row.className || ''}`}
+                              className={`text-slate-800 leading-relaxed ${row.className || ''}`}
                               placeholder={row.placeholder}
                             />
                           </td>
@@ -566,7 +562,7 @@ JSON 结构示例：
                         value={(data.feedback as any)[row.id].content} 
                         onChange={v => updateByPath(`feedback.${row.id}.content`, v)}
                         isPreview={isPreview}
-                        className="text-xs text-slate-700"
+                        className="text-base text-slate-800"
                         placeholder="..."
                       />
                     </td>

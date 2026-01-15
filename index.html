@@ -28,9 +28,17 @@
         .font-zh { font-family: 'Microsoft YaHei', sans-serif; }
         
         .font-content { 
-            /* 优先使用舒窈衡水体，英文字符会自动应用该字体，中文字符 fallback 到微软雅黑 */
+            /* 依靠字体堆栈：
+               1. 舒窈衡水体：自带倾斜感的手写风格。
+               2. Calibri：英文标准字体。
+               3. 微软雅黑：中文字符回退。
+            */
             font-family: 'ShuYaoHengShui', 'Calibri', 'Microsoft YaHei', sans-serif; 
-            font-style: italic;
+            /* 开启斜体属性：Calibri 等具有原生斜体定义的字体将变斜 */
+            font-style: italic; 
+            /* 核心设置：禁止浏览器对没有原生斜体定义的字体（如微软雅黑、衡水体）进行人工合成斜体。
+               这样中文字符会回退并以正体形式显示。 */
+            font-synthesis: none; 
         }
 
         @media print {
@@ -58,6 +66,5 @@
 </head>
 <body class="font-zh">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
