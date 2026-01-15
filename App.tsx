@@ -470,9 +470,6 @@ const App: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-xs font-bold font-zh text-slate-400 uppercase tracking-wider">（二）互动游戏</h3>
-                {!isPreview && (
-                  <button onClick={addGame} className="no-print bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-[9px] font-bold hover:bg-indigo-100 transition-colors uppercase">+ New Game</button>
-                )}
               </div>
               <div className="space-y-5">
                 {data.games.map((game, i) => (
@@ -489,6 +486,21 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 ))}
+                
+                {/* 调整后的“添加游戏”按钮位置 */}
+                {!isPreview && (
+                  <div className="no-print flex justify-end mt-4">
+                    <button 
+                      onClick={addGame} 
+                      className="group/add flex items-center gap-2 bg-white border border-dashed border-indigo-200 text-indigo-400 px-4 py-2 rounded-xl text-xs font-bold hover:border-indigo-400 hover:text-indigo-600 transition-all shadow-sm"
+                    >
+                      <svg className="w-4 h-4 transition-transform group-hover/add:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/>
+                      </svg>
+                      ADD NEW GAME
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -501,19 +513,10 @@ const App: React.FC = () => {
             title="教学环节实施" 
             onClear={() => updateByPath('steps', INITIAL_STATE.steps)} 
             isPreview={isPreview}
-            extraAction={(
-              <button 
-                onClick={addStep} 
-                className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-[9px] font-bold hover:bg-indigo-100 transition-colors uppercase"
-              >
-                + Add Step
-              </button>
-            )}
           />
           <div className="space-y-8">
             {data.steps.map((step, i) => (
               <div key={i} className="group/step relative">
-                {/* 环节标题行：优化序号与内容的同行显示 */}
                 <div className="flex items-start gap-2 mb-2 min-h-[1.5em]">
                   <span className="font-bold text-slate-800 text-sm pt-0.5 select-none shrink-0">{i + 1}.</span>
                   <div className="flex-1 flex items-start justify-between">
@@ -567,6 +570,21 @@ const App: React.FC = () => {
                 </div>
               </div>
             ))}
+
+            {/* 调整后的“添加环节”按钮位置 */}
+            {!isPreview && (
+              <div className="no-print flex justify-end mt-12 pb-4">
+                <button 
+                  onClick={addStep} 
+                  className="group/add flex items-center gap-3 bg-indigo-500 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-lg shadow-indigo-200 hover:bg-indigo-600 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                >
+                  <svg className="w-5 h-5 transition-transform group-hover/add:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4"/>
+                  </svg>
+                  ADD NEXT STEP
+                </button>
+              </div>
+            )}
           </div>
         </section>
 
@@ -650,7 +668,6 @@ const App: React.FC = () => {
           .paper { border: none !important; box-shadow: none !important; width: 100% !important; max-width: none !important; margin: 0 !important; padding: 10mm !important; border-radius: 0 !important; transform: none !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .page-break-before { page-break-before: always; }
           input, textarea { background: transparent !important; color: inherit !important; border: none !important; }
-          /* 修复显示两次的问题：移除强制显示 textarea 的规则，改用组件内部控制 */
           @page { margin: 10mm; size: A4; }
           textarea::placeholder { color: transparent !important; }
         }
