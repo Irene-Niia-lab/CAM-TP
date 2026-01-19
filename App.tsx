@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { TeachingPlan, Game, ImplementationStep } from './types';
 import * as mammoth from 'mammoth';
 
@@ -171,7 +171,9 @@ const App: React.FC = () => {
       if (file.name.toLowerCase().endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
         const arrayBuffer = await file.arrayBuffer();
         const result = await mammoth.extractRawText({ arrayBuffer });
-        contentPart = { text: `以下是教案文档的内容，请根据此内容提取信息：\n\n${result.value}` };
+        // 限制文本长度以防止 RPC 负载过大导致 500 错误
+        const truncatedText = result.value.slice(0, 50000); 
+        contentPart = { text: `以下是教案文档的内容，请从中提取信息填充教案：\n\n${truncatedText}` };
       } 
       else {
         const base64 = await new Promise<string>((resolve) => {
@@ -182,31 +184,12 @@ const App: React.FC = () => {
         contentPart = { inlineData: { mimeType: file.type, data: base64 } };
       }
 
-      const prompt = `你是一个专业的教案数据提取专家。请从提供的文档或图片中将内容提取出来并按指定的 JSON 结构返回。
+      const prompt = `你是一个专业的教案数据提取专家。请从提供的文档或图片中将内容准确提取出来。
 要求：
-1. 严禁修改原文，完整保留文字、标点。
-2. 环节名称提取到 'step'。
-3. 如果缺失则保留空字符串。
-4. 必须仅返回合法的 JSON 字符串，不要包含 Markdown 标记。
-
-JSON 结构示例：
-{
-  "basic": {"level": "", "unit": "", "lessonNo": "", "duration": "", "className": "", "studentCount": "", "date": ""},
-  "objectives": {
-    "vocab": {"core": "", "basic": "", "satellite": ""},
-    "patterns": {"core": "", "basic": "", "satellite": ""},
-    "expansion": {"culture": "", "daily": "", "habits": ""}
-  },
-  "materials": {"cards": "", "realia": "", "multimedia": "", "rewards": ""},
-  "games": [{"name": "", "goal": "", "prep": "", "rules": ""}],
-  "steps": [{"step": "", "duration": "", "design": "", "instructions": "", "notes": "", "blackboard": ""}],
-  "connection": {"review": "", "preview": "", "homework": "", "prep": ""},
-  "feedback": {
-    "student": {"content": "", "time": "", "plan": ""},
-    "parent": {"content": "", "time": "", "plan": ""},
-    "partner": {"content": "", "time": "", "plan": ""}
-  }
-}`;
+1. 完整保留文字、标点。
+2. 环节名称提取到 'step' 字段。
+3. 如果内容缺失，对应的 JSON 字段必须保留空字符串 ""。
+4. 严格按照 JSON 结构返回。`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -219,27 +202,86 @@ JSON 结构示例：
           }
         ],
         config: {
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              basic: {
+                type: Type.OBJECT,
+                properties: {
+                  level: { type: Type.STRING },
+                  unit: { type: Type.STRING },
+                  lessonNo: { type: Type.STRING },
+                  duration: { type: Type.STRING },
+                  className: { type: Type.STRING },
+                  studentCount: { type: Type.STRING },
+                  date: { type: Type.STRING },
+                }
+              },
+              objectives: {
+                type: Type.OBJECT,
+                properties: {
+                  vocab: { type: Type.OBJECT, properties: { core: { type: Type.STRING }, basic: { type: Type.STRING }, satellite: { type: Type.STRING } } },
+                  patterns: { type: Type.OBJECT, properties: { core: { type: Type.STRING }, basic: { type: Type.STRING }, satellite: { type: Type.STRING } } },
+                  expansion: { type: Type.OBJECT, properties: { culture: { type: Type.STRING }, daily: { type: Type.STRING }, habits: { type: Type.STRING } } }
+                }
+              },
+              materials: {
+                type: Type.OBJECT,
+                properties: { cards: { type: Type.STRING }, realia: { type: Type.STRING }, multimedia: { type: Type.STRING }, rewards: { type: Type.STRING } }
+              },
+              games: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: { name: { type: Type.STRING }, goal: { type: Type.STRING }, prep: { type: Type.STRING }, rules: { type: Type.STRING } }
+                }
+              },
+              steps: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: { step: { type: Type.STRING }, duration: { type: Type.STRING }, design: { type: Type.STRING }, instructions: { type: Type.STRING }, notes: { type: Type.STRING }, blackboard: { type: Type.STRING } }
+                }
+              },
+              connection: {
+                type: Type.OBJECT,
+                properties: { review: { type: Type.STRING }, preview: { type: Type.STRING }, homework: { type: Type.STRING }, prep: { type: Type.STRING } }
+              },
+              feedback: {
+                type: Type.OBJECT,
+                properties: {
+                  student: { type: Type.OBJECT, properties: { content: { type: Type.STRING }, time: { type: Type.STRING }, plan: { type: Type.STRING } } },
+                  parent: { type: Type.OBJECT, properties: { content: { type: Type.STRING }, time: { type: Type.STRING }, plan: { type: Type.STRING } } },
+                  partner: { type: Type.OBJECT, properties: { content: { type: Type.STRING }, time: { type: Type.STRING }, plan: { type: Type.STRING } } }
+                }
+              }
+            }
+          }
         }
       });
 
       const textOutput = response.text;
       if (!textOutput) throw new Error("AI 返回内容为空。");
 
-      const jsonString = textOutput.replace(/```json/g, '').replace(/```/g, '').trim();
-      const extractedData = JSON.parse(jsonString);
+      const extractedData = JSON.parse(textOutput);
       
-      if (extractedData.steps && extractedData.steps.length < 5) {
-        const currentCount = extractedData.steps.length;
-        for (let i = currentCount; i < 5; i++) {
-          extractedData.steps.push({ step: '', duration: '', design: '', instructions: '', notes: '', blackboard: '' });
+      // 补齐至少 5 个步骤
+      if (extractedData.steps) {
+        if (extractedData.steps.length < 5) {
+          const currentCount = extractedData.steps.length;
+          for (let i = currentCount; i < 5; i++) {
+            extractedData.steps.push({ step: '', duration: '', design: '', instructions: '', notes: '', blackboard: '' });
+          }
         }
+      } else {
+        extractedData.steps = INITIAL_STATE.steps;
       }
       
       setData({ ...INITIAL_STATE, ...extractedData });
     } catch (error: any) {
       console.error("智能提取失败:", error);
-      alert(`智能导入失败：网络错误或文档内容过于复杂，请重试。`);
+      alert(`智能导入失败：网络请求错误或文件处理异常。请检查您的网络连接并尝试上传较小的文件。`);
     } finally {
       setIsProcessing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -482,11 +524,11 @@ JSON 结构示例：
                   <table className="w-full border-collapse">
                     <tbody className="divide-y divide-slate-100">
                       {[
-                        { label: '时长', field: 'duration', placeholder: '如: 3 mins', className: 'font-content text-indigo-500 font-bold text-base' },
-                        { label: '环节设计', field: 'design', placeholder: '描述老师和小朋友的互动环节...', className: 'font-content text-base' },
-                        { label: '课堂指令/用语', field: 'instructions', placeholder: 'Teacher\'s talk: ...', className: 'font-content text-slate-500 text-base' },
-                        { label: '难点/注意点', field: 'notes', placeholder: '注意事项...', className: 'font-content text-red-400 text-base' },
-                        { label: '板书设计', field: 'blackboard', placeholder: '板书内容...', className: 'font-content text-base' },
+                        { label: '时长', field: 'duration', placeholder: '如: 3 mins', className: 'text-indigo-500 font-bold' },
+                        { label: '环节设计', field: 'design', placeholder: '描述老师和小朋友的互动环节...', className: '' },
+                        { label: '课堂指令/用语', field: 'instructions', placeholder: 'Teacher\'s talk: ...', className: 'text-slate-500' },
+                        { label: '难点/注意点', field: 'notes', placeholder: '注意事项...', className: 'text-red-400' },
+                        { label: '板书设计', field: 'blackboard', placeholder: '板书内容...', className: '' },
                       ].map((row) => (
                         <tr key={row.field} className="align-top">
                           <td className="p-3 w-[120px] bg-slate-50/50 border-r border-slate-100 font-zh font-bold text-xs text-slate-400 uppercase tracking-tighter pt-4 text-center">
@@ -497,7 +539,7 @@ JSON 结构示例：
                               value={(step as any)[row.field]} 
                               onChange={v => { const s = [...data.steps]; (s[i] as any)[row.field] = v; updateByPath('steps', s); }}
                               isPreview={isPreview}
-                              className={`text-slate-800 leading-relaxed ${row.className || ''}`}
+                              className={`text-slate-800 leading-relaxed font-content text-base ${row.className || ''}`}
                               placeholder={row.placeholder}
                             />
                           </td>
