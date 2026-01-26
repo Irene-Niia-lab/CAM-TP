@@ -487,7 +487,7 @@ const App: React.FC = () => {
         </section>
 
         {/* 04 Implementation */}
-        <section className="mb-10 page-break-before relative z-10">
+        <section className="mb-10 relative z-10">
           <SectionTitle 
             num="04" 
             title="教学环节实施" 
@@ -645,6 +645,12 @@ const App: React.FC = () => {
           .no-print { display: none !important; }
           body { background: white !important; margin: 0; padding: 0; }
           .paper { border: none !important; box-shadow: none !important; width: 100% !important; max-width: none !important; margin: 0 !important; padding: 10mm !important; border-radius: 0 !important; transform: none !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          
+          /* 允许跨页排版，减少空白 */
+          table, tr, td { page-break-inside: auto !important; }
+          .group-step { page-break-inside: auto !important; }
+          .whitespace-pre-wrap { page-break-inside: auto !important; }
+          
           .page-break-before { page-break-before: always; }
           input, textarea { background: transparent !important; color: inherit !important; border: none !important; }
           @page { margin: 10mm; size: A4; }
@@ -653,7 +659,7 @@ const App: React.FC = () => {
         textarea::-webkit-scrollbar { width: 0; height: 0; }
         .paper { min-height: 297mm; }
         textarea { white-space: pre-wrap; word-break: break-word; }
-        tr { page-break-inside: avoid; }
+        tr { page-break-inside: auto; }
       `}</style>
     </div>
   );
