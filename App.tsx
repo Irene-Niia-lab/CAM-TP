@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
-import { TeachingPlan, Game, ImplementationStep } from './types';
+import { GoogleGenAI } from "@google/genai";
+import { TeachingPlan } from './types';
 import * as mammoth from 'mammoth';
 
 // --- 初始状态定义 ---
@@ -68,53 +68,39 @@ const AutoResizingTextarea = memo(({ value, onChange, isPreview, className, plac
   );
 });
 
-const SectionTitle = memo(({ num, title, onClear, isPreview }: { 
-  num: string, 
-  title: string, 
-  onClear?: () => void, 
-  isPreview: boolean
-}) => (
-  <div className="flex items-center mb-6 mt-4 group/title print:mt-10 print:mb-6">
-    <div className="w-1.5 h-6 bg-indigo-500 rounded-full mr-4"></div>
+const SectionTitle = memo(({ num, title, isPreview }: { num: string, title: string, isPreview: boolean }) => (
+  <div className="flex items-center mb-8 mt-10 print:mt-10 print:mb-8">
+    <div className="w-1.5 h-6 bg-indigo-600 rounded-full mr-4"></div>
     <div className="flex items-baseline">
-      <span className="text-indigo-500 font-bold text-xl mr-2 opacity-50">{num}.</span>
-      <h2 className="text-lg font-bold font-zh text-slate-800 tracking-wide uppercase">{title}</h2>
+      <span className="text-indigo-700 font-bold text-xl mr-3">{num}.</span>
+      <h2 className="text-xl font-bold font-zh text-slate-900 tracking-wider">{title}</h2>
     </div>
-    {!isPreview && onClear && (
-      <button 
-        onClick={onClear}
-        className="ml-4 opacity-0 group-hover/title:opacity-100 transition-opacity text-slate-300 hover:text-red-400 flex items-center gap-1 text-[10px] font-bold font-zh no-print"
-      >
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-        清空
-      </button>
-    )}
-    <div className="flex-1 ml-6 h-[1px] bg-slate-100 print:bg-slate-200"></div>
+    <div className="flex-1 ml-6 h-[1px] bg-slate-200 print:bg-slate-300"></div>
   </div>
 ));
 
-const EditableLine = memo(({ label, value, onChange, isPreview, placeholder = "点击填写..." }: { label: string, value: string, onChange: (v: string) => void, isPreview: boolean, placeholder?: string }) => {
-  return (
-    <div className={`group flex items-start py-2 border-b border-slate-50 transition-all print:border-slate-100 ${isPreview ? 'border-transparent' : 'hover:border-indigo-100'}`}>
-      <div className="flex-shrink-0 font-bold text-[10px] font-zh min-w-[140px] text-slate-400 pt-1.5 uppercase tracking-wider">
-        {label}
-      </div>
-      <div className="flex-1 ml-4">
-        <AutoResizingTextarea 
-          value={value} 
-          onChange={onChange} 
-          isPreview={isPreview} 
-          placeholder={placeholder}
-          className="font-content text-base text-slate-800 placeholder-slate-200 focus:text-indigo-900"
-        />
-      </div>
+const SubSectionTitle = memo(({ title }: { title: string }) => (
+  <h3 className="text-sm font-bold text-indigo-700 mb-6 font-zh">{title}</h3>
+));
+
+const LabelRow = memo(({ label, value, onChange, isPreview, placeholder = "..." }: { label: string, value: string, onChange: (v: string) => void, isPreview: boolean, placeholder?: string }) => (
+  <div className="flex items-start py-3 border-b border-slate-100 print:border-slate-200">
+    <div className="w-36 flex-shrink-0 text-xs font-bold text-slate-500 uppercase tracking-wider pt-1">{label}</div>
+    <div className="flex-1 ml-4">
+      <AutoResizingTextarea 
+        value={value} 
+        onChange={onChange} 
+        isPreview={isPreview} 
+        placeholder={placeholder}
+        className="font-content text-base text-slate-800 leading-relaxed"
+      />
     </div>
-  );
-});
+  </div>
+));
 
 const App: React.FC = () => {
   const [data, setData] = useState<TeachingPlan>(() => {
-    const saved = localStorage.getItem('teaching-plan-v17');
+    const saved = localStorage.getItem('teaching-plan-final-v1');
     return saved ? JSON.parse(saved) : INITIAL_STATE;
   });
   
@@ -123,19 +109,9 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    localStorage.setItem('teaching-plan-v17', JSON.stringify(data));
+    localStorage.setItem('teaching-plan-final-v1', JSON.stringify(data));
     const { level, unit, lessonNo } = data.basic;
-    const formatPart = (val: string, prefix: string) => {
-      const clean = (val || '').trim();
-      if (!clean) return '';
-      if (clean.toUpperCase().startsWith(prefix.toUpperCase())) return clean;
-      return `${prefix}${clean}`;
-    };
-    const pLevel = formatPart(level, 'PU');
-    const pUnit = formatPart(unit, 'U');
-    const pLesson = formatPart(lessonNo, 'L');
-    const fileName = `02.${pLevel} ${pUnit}${pLesson} Teaching Plan`.replace(/\s+/g, ' ').trim();
-    document.title = fileName;
+    document.title = `02.PU${level || ''} U${unit || ''}L${lessonNo || ''} Teaching Plan`;
   }, [data]);
 
   const updateByPath = (path: string, value: any) => {
@@ -159,73 +135,55 @@ const App: React.FC = () => {
     setIsProcessing(true);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      let contentPart: any;
-      if (file.name.toLowerCase().endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        contentPart = { text: `提取教案信息并转为 JSON：\n\n${result.value.slice(0, 50000)}` };
-      } else {
-        const base64 = await new Promise<string>((r) => {
-          const reader = new FileReader();
-          reader.onload = () => r((reader.result as string).split(',')[1]);
-          reader.readAsDataURL(file);
-        });
-        contentPart = { inlineData: { mimeType: file.type, data: base64 } };
-      }
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: [{ parts: [{ text: "将教案内容转为 JSON。" }, contentPart] }],
+        contents: [{ parts: [{ text: "将教案内容转为 JSON。" }, { text: result.value }] }],
         config: { responseMimeType: "application/json" }
       });
       setData({ ...INITIAL_STATE, ...JSON.parse(response.text || "{}") });
-    } catch (err) { alert('导入失败'); } finally { setIsProcessing(false); if(fileInputRef.current) fileInputRef.current.value = ''; }
+    } catch (err) { alert('导入失败'); } finally { setIsProcessing(false); }
   };
 
-  const addStep = () => setData(prev => ({ ...prev, steps: [...prev.steps, { step: '', duration: '', design: '', instructions: '', notes: '', blackboard: '' }] }));
-  const removeStep = (index: number) => { if (data.steps.length > 1) setData(prev => ({ ...prev, steps: prev.steps.filter((_, i) => i !== index) })); };
-  const addGame = () => setData(prev => ({ ...prev, games: [...prev.games, { name: '', goal: '', prep: '', rules: '' }] }));
-  const removeGame = (index: number) => { if (data.games.length > 1) setData(prev => ({ ...prev, games: prev.games.filter((_, i) => i !== index) })); };
-
   return (
-    <div className={`min-h-screen transition-all duration-700 py-12 px-4 print:p-0 print:bg-white ${isPreview ? 'bg-slate-900' : 'bg-slate-50'}`}>
+    <div className={`min-h-screen py-12 px-4 print:p-0 print:bg-white ${isPreview ? 'bg-slate-900' : 'bg-slate-50'}`}>
       
       {/* Controls */}
-      <div className={`no-print fixed top-8 right-8 flex flex-col gap-3 z-50 transition-all ${isPreview ? 'opacity-0 scale-90 translate-x-12 pointer-events-none' : 'opacity-100'}`}>
-        <button onClick={() => window.print()} className="bg-slate-800 hover:bg-indigo-600 text-white px-6 py-3 rounded-2xl shadow-xl hover:scale-105 transition-all font-bold text-xs">导出 PDF 教案</button>
-        <button disabled={isProcessing} onClick={() => fileInputRef.current?.click()} className="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-3 rounded-2xl shadow-xl hover:scale-105 transition-all font-bold text-xs">
-          {isProcessing ? '正在处理...' : '智能导入 Word'}
-        </button>
-        <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".doc,.docx" />
-        <button onClick={() => setIsPreview(!isPreview)} className="bg-white border border-slate-200 text-slate-600 px-6 py-3 rounded-2xl shadow-md hover:text-indigo-600 transition-all font-bold text-xs">{isPreview ? '退出预览' : '预览模式'}</button>
+      <div className="no-print fixed top-8 right-8 flex flex-col gap-3 z-50">
+        <button onClick={() => window.print()} className="bg-indigo-700 text-white px-6 py-3 rounded-2xl shadow-xl hover:bg-indigo-800 transition-all font-bold text-xs">导出 PDF</button>
+        <button disabled={isProcessing} onClick={() => fileInputRef.current?.click()} className="bg-slate-800 text-white px-6 py-3 rounded-2xl shadow-xl hover:bg-slate-900 transition-all font-bold text-xs">{isProcessing ? '处理中...' : '导入 Word'}</button>
+        <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".docx" />
+        <button onClick={() => setIsPreview(!isPreview)} className="bg-white text-slate-700 border border-slate-200 px-6 py-3 rounded-2xl shadow-md font-bold text-xs">{isPreview ? '退出预览' : '预览'}</button>
       </div>
 
-      <div className={`paper mx-auto bg-white transition-all duration-1000 relative ${isPreview ? 'p-[12mm] rounded-none shadow-2xl scale-[0.98]' : 'p-[20mm] rounded-3xl shadow-[0_20px_60px_rgba(0,0,0,0.01)]'}`} style={{ maxWidth: '210mm' }}>
+      <div className="paper mx-auto bg-white p-[20mm] print:p-[10mm] shadow-2xl print:shadow-none" style={{ maxWidth: '210mm', minHeight: '297mm' }}>
         
-        {/* Header - 100% 还原用户要求的主副标题 */}
-        <div className="text-center mb-16 relative z-10 print:mb-10">
-          <h1 className="text-3xl font-bold font-zh text-slate-900 tracking-[0.05em] print:text-2xl">少儿英语线下课课堂教案</h1>
-          <p className="text-indigo-400 font-content text-[10px] tracking-[0.1em] uppercase font-bold mt-2 opacity-60">JIANYINGLINGHANG TRAINING & DEVELOPMENT DEPARTMENT</p>
+        {/* Header */}
+        <div className="text-center mb-16 print:mb-12">
+          <h1 className="text-3xl font-bold font-zh text-slate-900 tracking-wider">少儿英语线下课课堂教案</h1>
+          <p className="text-indigo-600 font-content text-[11px] tracking-[0.1em] uppercase font-bold mt-2 opacity-80">JIANYINGLINGHANG TRAINING & DEVELOPMENT DEPARTMENT</p>
         </div>
 
         {/* 01 Basic Info */}
-        <section className="mb-12 print:mb-8">
-          <SectionTitle num="01" title="基础课程信息" isPreview={isPreview} onClear={() => updateByPath('basic', INITIAL_STATE.basic)} />
-          <div className="grid grid-cols-2 border border-slate-100 print:border-slate-300 rounded-2xl overflow-hidden print:rounded-none">
+        <section className="mb-14">
+          <SectionTitle num="01" title="基础课程信息" isPreview={isPreview} />
+          <div className="grid grid-cols-2 border border-slate-200 rounded-2xl overflow-hidden print:rounded-none print:border-slate-400">
             {[
-              { label: '课程级别', path: 'basic.level' },
-              { label: '单元名称', path: 'basic.unit' },
-              { label: '课号', path: 'basic.lessonNo' },
-              { label: '课时时长', path: 'basic.duration' },
-              { label: '授课班级', path: 'basic.className' },
-              { label: '学生人数', path: 'basic.studentCount' },
-              { label: '授课日期', path: 'basic.date', span: true },
+              { label: '课程级别', path: 'basic.level', p: 'PU3' },
+              { label: '单元', path: 'basic.unit', p: 'U0' },
+              { label: '课号', path: 'basic.lessonNo', p: 'L1' },
+              { label: '时长', path: 'basic.duration', p: '90min' },
+              { label: '授课班级', path: 'basic.className', p: '/' },
+              { label: '人数', path: 'basic.studentCount', p: '/' },
+              { label: '日期', path: 'basic.date', span: true, p: '/' },
             ].map((item, idx) => (
-              <div key={item.path} className={`flex border-slate-50 print:border-slate-300 ${idx % 2 === 0 ? 'border-r' : ''} ${idx < 6 ? 'border-b' : ''} ${item.span ? 'col-span-2' : ''}`}>
-                <div className="w-24 bg-slate-50/50 p-3 font-zh font-bold text-[9px] text-slate-400 flex items-center justify-center text-center uppercase tracking-tighter shrink-0 print:bg-slate-50">
+              <div key={item.path} className={`flex border-slate-100 print:border-slate-400 ${idx % 2 === 0 ? 'border-r' : ''} ${idx < 6 ? 'border-b' : ''} ${item.span ? 'col-span-2' : ''}`}>
+                <div className="w-24 bg-slate-50 p-4 font-zh font-bold text-[10px] text-slate-500 flex items-center justify-center text-center uppercase print:bg-slate-50">
                   {item.label}
                 </div>
-                <div className="flex-1 p-2">
-                  <input readOnly={isPreview} className="w-full text-center font-content text-base outline-none bg-transparent text-slate-700" value={(data.basic as any)[item.path.split('.')[1]]} onChange={e => updateByPath(item.path, e.target.value)} />
+                <div className="flex-1 p-3">
+                  <input readOnly={isPreview} className="w-full text-center font-content text-lg outline-none bg-transparent text-slate-900" value={(data.basic as any)[item.path.split('.')[1]]} onChange={e => updateByPath(item.path, e.target.value)} placeholder={item.p} />
                 </div>
               </div>
             ))}
@@ -233,100 +191,103 @@ const App: React.FC = () => {
         </section>
 
         {/* 02 Objectives */}
-        <section className="mb-12 print:mb-8">
-          <SectionTitle num="02" title="核心教学目标" isPreview={isPreview} onClear={() => updateByPath('objectives', INITIAL_STATE.objectives)} />
-          <div className="flex flex-col space-y-8">
+        <section className="mb-14">
+          <SectionTitle num="02" title="核心教学目标" isPreview={isPreview} />
+          
+          <div className="space-y-12">
             <div>
-              <h3 className="text-[10px] font-bold font-zh text-indigo-300 mb-3 uppercase tracking-widest opacity-80">Vocabulary / 词汇目标</h3>
-              <EditableLine label="核心单词 (4 skills)" value={data.objectives.vocab.core} onChange={v => updateByPath('objectives.vocab.core', v)} isPreview={isPreview} />
-              <EditableLine label="基础单词 (3 skills)" value={data.objectives.vocab.basic} onChange={v => updateByPath('objectives.vocab.basic', v)} isPreview={isPreview} />
-              <EditableLine label="卫星单词 (2 skills)" value={data.objectives.vocab.satellite} onChange={v => updateByPath('objectives.vocab.satellite', v)} isPreview={isPreview} />
+              <SubSectionTitle title="(一) 词汇目标 / VOCABULARY" />
+              <LabelRow label="核心单词 (4 SKILLS)" value={data.objectives.vocab.core} onChange={v => updateByPath('objectives.vocab.core', v)} isPreview={isPreview} />
+              <LabelRow label="基础单词 (3 SKILLS)" value={data.objectives.vocab.basic} onChange={v => updateByPath('objectives.vocab.basic', v)} isPreview={isPreview} />
+              <LabelRow label="卫星单词 (2 SKILLS)" value={data.objectives.vocab.satellite} onChange={v => updateByPath('objectives.vocab.satellite', v)} isPreview={isPreview} />
             </div>
+
             <div>
-              <h3 className="text-[10px] font-bold font-zh text-indigo-300 mb-3 uppercase tracking-widest opacity-80">Sentences / 句型目标</h3>
-              <EditableLine label="核心句型" value={data.objectives.patterns.core} onChange={v => updateByPath('objectives.patterns.core', v)} isPreview={isPreview} />
-              <EditableLine label="基础句型" value={data.objectives.patterns.basic} onChange={v => updateByPath('objectives.patterns.basic', v)} isPreview={isPreview} />
-              <EditableLine label="卫星句型" value={data.objectives.patterns.satellite} onChange={v => updateByPath('objectives.patterns.satellite', v)} isPreview={isPreview} />
+              <SubSectionTitle title="(二) 句型目标 / SENTENCES" />
+              <LabelRow label="核心句型" value={data.objectives.patterns.core} onChange={v => updateByPath('objectives.patterns.core', v)} isPreview={isPreview} />
+              <LabelRow label="基础句型" value={data.objectives.patterns.basic} onChange={v => updateByPath('objectives.patterns.basic', v)} isPreview={isPreview} />
+              <LabelRow label="卫星句型" value={data.objectives.patterns.satellite} onChange={v => updateByPath('objectives.patterns.satellite', v)} isPreview={isPreview} />
             </div>
+
             <div>
-              <h3 className="text-[10px] font-bold font-zh text-indigo-300 mb-3 uppercase tracking-widest opacity-80">Expansion / 拓展目标</h3>
-              <EditableLine label="文化拓展" value={data.objectives.expansion.culture} onChange={v => updateByPath('objectives.expansion.culture', v)} isPreview={isPreview} />
-              <EditableLine label="日常表达" value={data.objectives.expansion.daily} onChange={v => updateByPath('objectives.expansion.daily', v)} isPreview={isPreview} />
-              <EditableLine label="习惯培养" value={data.objectives.expansion.habits} onChange={v => updateByPath('objectives.expansion.habits', v)} isPreview={isPreview} />
+              <SubSectionTitle title="(三) 拓展目标 / EXPANSION" />
+              <LabelRow label="文化拓展" value={data.objectives.expansion.culture} onChange={v => updateByPath('objectives.expansion.culture', v)} isPreview={isPreview} />
+              <LabelRow label="日常表达" value={data.objectives.expansion.daily} onChange={v => updateByPath('objectives.expansion.daily', v)} isPreview={isPreview} />
+              <LabelRow label="行为习惯" value={data.objectives.expansion.habits} onChange={v => updateByPath('objectives.expansion.habits', v)} isPreview={isPreview} />
             </div>
           </div>
         </section>
 
-        {/* 03 Games & Materials */}
-        <section className="mb-12 print:mb-8 print:overflow-visible">
-          <SectionTitle num="03" title="互动与教具准备" isPreview={isPreview} />
-          <div className="grid grid-cols-2 gap-x-8 gap-y-12 print:grid-cols-1 print:gap-y-6">
-             <div>
-                <h3 className="text-[10px] font-bold text-slate-300 mb-4 uppercase tracking-widest border-b border-slate-50 pb-1">教具准备 / Materials</h3>
-                <div className="space-y-1">
-                  <EditableLine label="词汇卡片" value={data.materials.cards} onChange={v => updateByPath('materials.cards', v)} isPreview={isPreview} />
-                  <EditableLine label="实物教具" value={data.materials.realia} onChange={v => updateByPath('materials.realia', v)} isPreview={isPreview} />
-                  <EditableLine label="多媒体课件" value={data.materials.multimedia} onChange={v => updateByPath('materials.multimedia', v)} isPreview={isPreview} />
-                  <EditableLine label="奖励道具" value={data.materials.rewards} onChange={v => updateByPath('materials.rewards', v)} isPreview={isPreview} />
-                </div>
-             </div>
-             <div>
-                <h3 className="text-[10px] font-bold text-slate-300 mb-4 uppercase tracking-widest border-b border-slate-50 pb-1">互动游戏方案 / Games</h3>
-                <div className="space-y-8">
-                  {data.games.map((g, i) => (
-                    <div key={i} className="group/game border-b border-slate-50 pb-4 print:break-inside-auto">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-[9px] font-bold text-indigo-200">GAME #{i+1}</span>
-                        {!isPreview && <button onClick={() => removeGame(i)} className="text-red-200 text-[8px] hover:text-red-400">REMOVE</button>}
-                      </div>
-                      <EditableLine label="游戏名称" value={g.name} onChange={v => { const ng = [...data.games]; ng[i].name = v; updateByPath('games', ng); }} isPreview={isPreview} />
-                      <EditableLine label="游戏目的" value={g.goal} onChange={v => { const ng = [...data.games]; ng[i].goal = v; updateByPath('games', ng); }} isPreview={isPreview} />
-                      <EditableLine label="所需准备" value={g.prep} onChange={v => { const ng = [...data.games]; ng[i].prep = v; updateByPath('games', ng); }} isPreview={isPreview} />
-                      <EditableLine label="规则说明" value={g.rules} onChange={v => { const ng = [...data.games]; ng[i].rules = v; updateByPath('games', ng); }} isPreview={isPreview} />
+        {/* 03 Preparation */}
+        <section className="mb-14 print:break-inside-auto">
+          <SectionTitle num="03" title="教具与互动准备" isPreview={isPreview} />
+          
+          <SubSectionTitle title="(一) 教具清单" />
+          <div className="space-y-2 mb-12">
+            <LabelRow label="词汇卡片" value={data.materials.cards} onChange={v => updateByPath('materials.cards', v)} isPreview={isPreview} />
+            <LabelRow label="实物教具" value={data.materials.realia} onChange={v => updateByPath('materials.realia', v)} isPreview={isPreview} />
+            <LabelRow label="多媒体设备" value={data.materials.multimedia} onChange={v => updateByPath('materials.multimedia', v)} isPreview={isPreview} />
+            <LabelRow label="奖励道具" value={data.materials.rewards} onChange={v => updateByPath('materials.rewards', v)} isPreview={isPreview} />
+          </div>
+
+          <SubSectionTitle title="(二) 互动游戏" />
+          <div className="space-y-8">
+            {data.games.map((g, i) => (
+              <div key={i} className="bg-slate-50/60 border border-slate-200 p-8 rounded-[2rem] print:rounded-none print:border-slate-400 print:bg-white print:break-inside-avoid shadow-sm print:shadow-none">
+                <div className="text-[10px] font-bold text-indigo-500 uppercase mb-6 tracking-widest">GAME {i+1}</div>
+                <div className="space-y-6">
+                  {[
+                    { label: '游戏名称', key: 'name' },
+                    { label: '游戏目的', key: 'goal' },
+                    { label: '游戏准备', key: 'prep' },
+                    { label: '游戏规则', key: 'rules' },
+                  ].map(field => (
+                    <div key={field.key} className="flex gap-6">
+                      <div className="w-20 shrink-0 text-[10px] font-bold text-indigo-700/80 uppercase tracking-tighter pt-1">{field.label}</div>
+                      <AutoResizingTextarea 
+                        value={(g as any)[field.key]} 
+                        onChange={v => { const ng = [...data.games]; (ng[i] as any)[field.key] = v; updateByPath('games', ng); }}
+                        isPreview={isPreview}
+                        className="text-sm text-slate-800 font-content leading-relaxed"
+                      />
                     </div>
                   ))}
-                  {!isPreview && <button onClick={addGame} className="w-full border border-dashed border-slate-100 py-2 rounded-xl text-[9px] font-bold text-slate-300 uppercase">+ Add Game</button>}
                 </div>
-             </div>
+              </div>
+            ))}
+            {!isPreview && <button onClick={() => updateByPath('games', [...data.games, { name: '', goal: '', prep: '', rules: '' }])} className="w-full py-4 border border-dashed border-slate-300 rounded-2xl text-xs font-bold text-slate-400 uppercase hover:bg-slate-50">+ 添加游戏</button>}
           </div>
         </section>
 
-        {/* 04 Implementation - 还原截图文案与表格视觉 */}
-        <section className="mb-12 print:mb-8 print:overflow-visible">
-          <SectionTitle num="04" title="教学环节实施" isPreview={isPreview} onClear={() => updateByPath('steps', INITIAL_STATE.steps)} />
-          <div className="space-y-12 print:space-y-0 print:block">
+        {/* 04 Implementation */}
+        <section className="mb-14 print:overflow-visible">
+          <SectionTitle num="04" title="教学环节实施" isPreview={isPreview} />
+          <div className="space-y-14 print:space-y-0 print:block">
             {data.steps.map((step, i) => (
-              <div key={i} className="group/step mb-10 print:mb-8 print:break-inside-auto">
-                <div className="flex items-center gap-4 mb-4 border-b border-slate-100 print:border-slate-300 pb-2">
-                  <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center font-bold text-slate-700 text-xs shadow-sm print:shadow-none">
-                    {i + 1}
-                  </div>
-                  <div className="flex-1">
-                    <AutoResizingTextarea 
-                      value={step.step} 
-                      onChange={v => { const s = [...data.steps]; s[i].step = v; updateByPath('steps', s); }}
-                      isPreview={isPreview}
-                      className="font-content text-lg font-bold text-indigo-900 tracking-tight"
-                      placeholder="例如: 13. Goodbye (道别)"
-                    />
-                  </div>
-                  {!isPreview && data.steps.length > 1 && (
-                    <button onClick={() => removeStep(i)} className="no-print text-red-200 hover:text-red-400 text-[8px] font-bold uppercase">Delete</button>
-                  )}
+              <div key={i} className="mb-12 print:mb-10 print:break-inside-auto print:block">
+                <div className="font-zh font-bold text-slate-900 text-lg mb-4 flex items-center gap-3">
+                  <span className="text-indigo-700">{i+1}.</span>
+                  <AutoResizingTextarea 
+                    value={step.step} 
+                    onChange={v => { const s = [...data.steps]; s[i].step = v; updateByPath('steps', s); }}
+                    isPreview={isPreview}
+                    className="flex-1 font-bold text-slate-900"
+                    placeholder="环节标题 (例如: Greeting 问候)"
+                  />
                 </div>
-
-                <div className="border border-slate-100 print:border-slate-300 rounded-xl overflow-hidden print:rounded-none">
+                
+                <div className="border border-slate-200 rounded-2xl overflow-hidden print:rounded-none print:border-slate-400">
                   <table className="w-full border-collapse">
-                    <tbody className="divide-y divide-slate-100 print:divide-slate-300">
+                    <tbody className="divide-y divide-slate-100 print:divide-slate-400">
                       {[
-                        { label: '时长', field: 'duration', color: 'text-indigo-600 font-bold' },
-                        { label: '环节设计', field: 'design', color: 'text-slate-800' },
-                        { label: '课堂指令/用语', field: 'instructions', color: 'text-slate-500 italic' },
-                        { label: '难点/注意点', field: 'notes', color: 'text-rose-400' },
-                        { label: '板书设计', field: 'blackboard', color: 'text-slate-400' },
+                        { label: '时长', field: 'duration', color: 'text-indigo-700 font-bold' },
+                        { label: '环节设计', field: 'design', color: 'text-slate-900' },
+                        { label: '课堂指令/用语', field: 'instructions', color: 'text-slate-600 italic' },
+                        { label: '难点/注意点', field: 'notes', color: 'text-rose-600' },
+                        { label: '板书设计', field: 'blackboard', color: 'text-slate-500' },
                       ].map((row) => (
                         <tr key={row.field} className="align-top print:break-inside-auto">
-                          <td className="w-32 bg-slate-50/50 p-4 border-r border-slate-100 print:border-slate-300 font-zh font-bold text-[10px] text-slate-400 text-center flex items-center justify-center h-full pt-6">
+                          <td className="w-28 bg-slate-50 p-4 border-r border-slate-100 print:border-slate-400 font-zh font-bold text-[10px] text-slate-500 text-center flex items-center justify-center pt-6 uppercase">
                             {row.label}
                           </td>
                           <td className="p-4 flex-1">
@@ -335,7 +296,6 @@ const App: React.FC = () => {
                               onChange={v => { const s = [...data.steps]; (s[i] as any)[row.field] = v; updateByPath('steps', s); }}
                               isPreview={isPreview}
                               className={`text-base leading-relaxed font-content ${row.color}`}
-                              placeholder="..."
                             />
                           </td>
                         </tr>
@@ -345,53 +305,49 @@ const App: React.FC = () => {
                 </div>
               </div>
             ))}
-            {!isPreview && (
-              <div className="no-print flex justify-center mt-8">
-                <button onClick={addStep} className="bg-slate-50 border border-dashed border-slate-200 px-8 py-3 rounded-2xl text-slate-400 font-bold text-xs uppercase hover:bg-white transition-all">+ Add New Step</button>
-              </div>
-            )}
           </div>
         </section>
 
         {/* 05 Connection */}
-        <section className="mb-12 print:mb-8">
+        <section className="mb-14">
           <SectionTitle num="05" title="教学内容衔接" isPreview={isPreview} />
-          <div className="space-y-1">
-            <EditableLine label="复习巩固 / Review" value={data.connection.review} onChange={v => updateByPath('connection.review', v)} isPreview={isPreview} />
-            <EditableLine label="内容预习 / Preview" value={data.connection.preview} onChange={v => updateByPath('connection.preview', v)} isPreview={isPreview} />
-            <EditableLine label="家庭作业 / Homework" value={data.connection.homework} onChange={v => updateByPath('connection.homework', v)} isPreview={isPreview} />
-            <EditableLine label="课前准备 / Prep" value={data.connection.prep} onChange={v => updateByPath('connection.prep', v)} isPreview={isPreview} />
+          <div className="space-y-2">
+            <LabelRow label="课堂复习 / REVIEW" value={data.connection.review} onChange={v => updateByPath('connection.review', v)} isPreview={isPreview} />
+            <LabelRow label="内容预习 / PREVIEW" value={data.connection.preview} onChange={v => updateByPath('connection.preview', v)} isPreview={isPreview} />
+            <LabelRow label="家庭作业 / HOMEWORK" value={data.connection.homework} onChange={v => updateByPath('connection.homework', v)} isPreview={isPreview} />
+            <LabelRow label="下次课前准备 / PREP" value={data.connection.prep} onChange={v => updateByPath('connection.prep', v)} isPreview={isPreview} />
           </div>
         </section>
 
         {/* 06 Feedback */}
-        <section className="mb-12 print:mb-8 print:overflow-visible">
-          <SectionTitle num="06" title="课后记录与备忘" isPreview={isPreview} onClear={() => updateByPath('feedback', INITIAL_STATE.feedback)} />
-          <div className="border border-slate-100 print:border-slate-300 rounded-2xl overflow-hidden print:rounded-none">
+        <section className="mb-14 print:break-inside-avoid">
+          <SectionTitle num="06" title="课后沟通备忘录" isPreview={isPreview} />
+          <div className="border border-slate-200 rounded-2xl overflow-hidden print:rounded-none print:border-slate-400">
             <table className="w-full border-collapse">
-              <thead className="bg-slate-50/50 border-b border-slate-100 print:border-slate-300">
-                <tr className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                  <th className="p-3 w-1/5 border-r border-slate-100 print:border-slate-300">反馈维度</th>
-                  <th className="p-3 w-3/5 text-left border-r border-slate-100 print:border-slate-300">反馈内容 / Feedback</th>
-                  <th className="p-3 w-1/5">时长与计划</th>
+              <thead className="bg-slate-50 border-b border-slate-200 print:border-slate-400">
+                <tr className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">
+                  <th className="p-4 w-[15%] border-r border-slate-200 print:border-slate-400">维度</th>
+                  <th className="p-4 w-[55%] text-left border-r border-slate-200 print:border-slate-400">反馈内容 / FEEDBACK</th>
+                  <th className="p-4 w-[15%] border-r border-slate-200 print:border-slate-400">时间</th>
+                  <th className="p-4 w-[15%]">后续计划</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 print:divide-slate-200">
+              <tbody className="divide-y divide-slate-100 print:divide-slate-400">
                 {[
                   { id: 'student', label: '学员反馈' },
                   { id: 'parent', label: '家长沟通' },
                   { id: 'partner', label: '搭档协作' },
                 ].map((row) => (
-                  <tr key={row.id} className="align-top print:break-inside-auto">
-                    <td className="p-4 bg-slate-50/20 border-r border-slate-100 print:border-slate-300 text-center font-zh font-bold text-[10px] text-slate-500 pt-5">{row.label}</td>
-                    <td className="p-4 border-r border-slate-100 print:border-slate-300">
-                      <AutoResizingTextarea value={(data.feedback as any)[row.id].content} onChange={v => updateByPath(`feedback.${row.id}.content`, v)} isPreview={isPreview} className="text-base text-slate-800" placeholder="..." />
+                  <tr key={row.id} className="align-top">
+                    <td className="p-4 bg-slate-50/40 border-r border-slate-200 print:border-slate-400 text-center font-zh font-bold text-[11px] text-slate-700 pt-6">{row.label}</td>
+                    <td className="p-4 border-r border-slate-200 print:border-slate-400">
+                      <AutoResizingTextarea value={(data.feedback as any)[row.id].content} onChange={v => updateByPath(`feedback.${row.id}.content`, v)} isPreview={isPreview} className="text-sm text-slate-900" />
                     </td>
-                    <td className="p-4 space-y-4">
-                      <AutoResizingTextarea value={(data.feedback as any)[row.id].time} onChange={v => updateByPath(`feedback.${row.id}.time`, v)} isPreview={isPreview} className="text-xs text-indigo-400 font-bold" placeholder="时长" />
-                      <div className="border-t border-slate-50 mt-2 pt-2">
-                        <AutoResizingTextarea value={(data.feedback as any)[row.id].plan} onChange={v => updateByPath(`feedback.${row.id}.plan`, v)} isPreview={isPreview} className="text-[10px] text-slate-300 italic" placeholder="计划" />
-                      </div>
+                    <td className="p-4 border-r border-slate-200 print:border-slate-400">
+                      <AutoResizingTextarea value={(data.feedback as any)[row.id].time} onChange={v => updateByPath(`feedback.${row.id}.time`, v)} isPreview={isPreview} className="text-xs text-center text-slate-600" />
+                    </td>
+                    <td className="p-4">
+                      <AutoResizingTextarea value={(data.feedback as any)[row.id].plan} onChange={v => updateByPath(`feedback.${row.id}.plan`, v)} isPreview={isPreview} className="text-xs text-center text-slate-600" />
                     </td>
                   </tr>
                 ))}
@@ -401,8 +357,9 @@ const App: React.FC = () => {
         </section>
 
         {/* Footer */}
-        <div className="mt-20 pt-8 border-t border-slate-50 text-center opacity-30 print:mt-12">
-          <p className="text-[8px] font-bold tracking-[0.3em] text-slate-400 uppercase">JIANYINGLINGHANG TRAINING & DEVELOPMENT DEPARTMENT</p>
+        <div className="mt-20 pt-10 border-t border-slate-100 text-center opacity-40 print:mt-12">
+          <p className="text-[9px] font-bold tracking-[0.4em] text-slate-500 uppercase">JIANYINGLINGHANG TRAINING & DEVELOPMENT DEPARTMENT</p>
+          <p className="text-[7px] mt-2 text-slate-400 font-zh">内部教研材料 · 严禁外传</p>
         </div>
       </div>
 
@@ -410,26 +367,12 @@ const App: React.FC = () => {
         @media print {
           .no-print { display: none !important; }
           body { background: white !important; margin: 0; padding: 0; }
-          .paper { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 10mm !important; border: none !important; box-shadow: none !important; transform: none !important; min-height: 0 !important; overflow: visible !important; }
-          
-          section, div, table, tr, td, tbody { 
-            page-break-inside: auto !important; 
-            break-inside: auto !important;
-            overflow: visible !important;
-            height: auto !important;
-          }
-          
-          table { display: table !important; border-collapse: collapse !important; }
-          tr { display: table-row !important; }
-          td { display: table-cell !important; }
-          tbody { display: table-row-group !important; }
-
-          .whitespace-pre-wrap { page-break-inside: auto !important; break-inside: auto !important; display: block !important; }
+          .paper { width: 100% !important; max-width: none !important; margin: 0 !important; border: none !important; transform: none !important; overflow: visible !important; }
+          section, div, table, tr, td, tbody { page-break-inside: auto !important; break-inside: auto !important; }
+          .break-inside-avoid { break-inside: avoid !important; }
           @page { margin: 10mm; size: A4; }
           textarea::placeholder { color: transparent !important; }
         }
-        .paper { min-height: 297mm; }
-        textarea::placeholder { color: #cbd5e1; }
       `}</style>
     </div>
   );
