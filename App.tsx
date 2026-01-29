@@ -1,8 +1,6 @@
 
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
 import { TeachingPlan, Game, ImplementationStep } from './types';
-import * as mammoth from 'mammoth';
 
 // --- 初始状态定义 ---
 const INITIAL_STATE: TeachingPlan = {
@@ -125,8 +123,6 @@ const App: React.FC = () => {
   });
   
   const [isPreview, setIsPreview] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     localStorage.setItem('teaching-plan-v13', JSON.stringify(data));
@@ -157,135 +153,6 @@ const App: React.FC = () => {
       current[keys[keys.length - 1]] = value;
       return next;
     });
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsProcessing(true);
-    try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      let contentPart: any;
-
-      if (file.name.toLowerCase().endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-        const arrayBuffer = await file.arrayBuffer();
-        const result = await mammoth.extractRawText({ arrayBuffer });
-        // 限制文本长度以防止 RPC 负载过大导致 500 错误
-        const truncatedText = result.value.slice(0, 50000); 
-        contentPart = { text: `以下是教案文档的内容，请从中提取信息填充教案：\n\n${truncatedText}` };
-      } 
-      else {
-        const base64 = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve((reader.result as string).split(',')[1]);
-          reader.readAsDataURL(file);
-        });
-        contentPart = { inlineData: { mimeType: file.type, data: base64 } };
-      }
-
-      const prompt = `你是一个专业的教案数据提取专家。请从提供的文档或图片中将内容准确提取出来。
-要求：
-1. 完整保留文字、标点。
-2. 环节名称提取到 'step' 字段。
-3. 如果内容缺失，对应的 JSON 字段必须保留空字符串 ""。
-4. 严格按照 JSON 结构返回。`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              contentPart
-            ]
-          }
-        ],
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              basic: {
-                type: Type.OBJECT,
-                properties: {
-                  level: { type: Type.STRING },
-                  unit: { type: Type.STRING },
-                  lessonNo: { type: Type.STRING },
-                  duration: { type: Type.STRING },
-                  className: { type: Type.STRING },
-                  studentCount: { type: Type.STRING },
-                  date: { type: Type.STRING },
-                }
-              },
-              objectives: {
-                type: Type.OBJECT,
-                properties: {
-                  vocab: { type: Type.OBJECT, properties: { core: { type: Type.STRING }, basic: { type: Type.STRING }, satellite: { type: Type.STRING } } },
-                  patterns: { type: Type.OBJECT, properties: { core: { type: Type.STRING }, basic: { type: Type.STRING }, satellite: { type: Type.STRING } } },
-                  expansion: { type: Type.OBJECT, properties: { culture: { type: Type.STRING }, daily: { type: Type.STRING }, habits: { type: Type.STRING } } }
-                }
-              },
-              materials: {
-                type: Type.OBJECT,
-                properties: { cards: { type: Type.STRING }, realia: { type: Type.STRING }, multimedia: { type: Type.STRING }, rewards: { type: Type.STRING } }
-              },
-              games: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: { name: { type: Type.STRING }, goal: { type: Type.STRING }, prep: { type: Type.STRING }, rules: { type: Type.STRING } }
-                }
-              },
-              steps: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: { step: { type: Type.STRING }, duration: { type: Type.STRING }, design: { type: Type.STRING }, instructions: { type: Type.STRING }, notes: { type: Type.STRING }, blackboard: { type: Type.STRING } }
-                }
-              },
-              connection: {
-                type: Type.OBJECT,
-                properties: { review: { type: Type.STRING }, preview: { type: Type.STRING }, homework: { type: Type.STRING }, prep: { type: Type.STRING } }
-              },
-              feedback: {
-                type: Type.OBJECT,
-                properties: {
-                  student: { type: Type.OBJECT, properties: { content: { type: Type.STRING }, time: { type: Type.STRING }, plan: { type: Type.STRING } } },
-                  parent: { type: Type.OBJECT, properties: { content: { type: Type.STRING }, time: { type: Type.STRING }, plan: { type: Type.STRING } } },
-                  partner: { type: Type.OBJECT, properties: { content: { type: Type.STRING }, time: { type: Type.STRING }, plan: { type: Type.STRING } } }
-                }
-              }
-            }
-          }
-        }
-      });
-
-      const textOutput = response.text;
-      if (!textOutput) throw new Error("AI 返回内容为空。");
-
-      const extractedData = JSON.parse(textOutput);
-      
-      // 补齐至少 5 个步骤
-      if (extractedData.steps) {
-        if (extractedData.steps.length < 5) {
-          const currentCount = extractedData.steps.length;
-          for (let i = currentCount; i < 5; i++) {
-            extractedData.steps.push({ step: '', duration: '', design: '', instructions: '', notes: '', blackboard: '' });
-          }
-        }
-      } else {
-        extractedData.steps = INITIAL_STATE.steps;
-      }
-      
-      setData({ ...INITIAL_STATE, ...extractedData });
-    } catch (error: any) {
-      console.error("智能提取失败:", error);
-      alert(`智能导入失败：网络请求错误或文件处理异常。请检查您的网络连接并尝试上传较小的文件。`);
-    } finally {
-      setIsProcessing(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
   };
 
   const addGame = () => {
@@ -326,27 +193,6 @@ const App: React.FC = () => {
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
           导出正式教案
-        </button>
-
-        <input 
-          type="file" 
-          ref={fileInputRef} 
-          onChange={handleFileUpload} 
-          className="hidden" 
-          accept="image/*,application/pdf,.doc,.docx"
-        />
-        
-        <button 
-          disabled={isProcessing}
-          onClick={() => fileInputRef.current?.click()}
-          className={`bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-3 rounded-xl shadow-xl hover:scale-105 transition-all font-bold text-sm flex items-center gap-2 ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {isProcessing ? (
-            <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-          ) : (
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-          )}
-          {isProcessing ? '正在智能提取...' : '智能导入文档'}
         </button>
 
         <button 
